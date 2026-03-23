@@ -1,0 +1,39 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Spring Boot
+backend/src/main/resources/application-secret.yml
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+.env.production
+
+# Node (프론트엔드)
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+
+# Compiled
+*.class
+
+# OMC
+.omc/

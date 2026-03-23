@@ -1,0 +1,75 @@
+spring:
+  profiles:
+    active: dev
+
+  application:
+    name: chachastudy
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/chachastudy
+    username: ${DB_USERNAME:chachastudy}
+    password: ${DB_PASSWORD:chachastudy}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:chachastudy-dev-secret-key-must-be-at-least-256-bits-long}
+  expiration: 86400000  # 24시간 (ms)
+
+ai:
+  base-url: ${AI_BASE_URL:https://api.openai.com}
+  api-key: ${AI_API_KEY:}  # 사용자가 직접 헤더로 전달하므로 서버에 저장 안 함
+
+logging:
+  level:
+    kr.ac.cnu.chachastudy: DEBUG
+    org.hibernate.SQL: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 86400000
+
+logging:
+  level:
+    root: WARN
+    kr.ac.cnu.chachastudy: INFO
