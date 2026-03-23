@@ -38,8 +38,8 @@ public class ChatService {
     private final DocumentRepository documentRepository;
 
     @Transactional
-    public ChatResponse chat(Long userId, String apiKey, ChatRequest request) {
-        Document document = getDocument(userId, request.documentId());
+    public ChatResponse chat(Long userId, String apiKey, Long documentId, ChatRequest request) {
+        Document document = getDocument(userId, documentId);
 
         // 이전 대화 내역 조회 (최근 N개)
         List<ChatMessage> history = chatMessageRepository
@@ -60,7 +60,7 @@ public class ChatService {
         ));
 
         // 현재 질문 추가
-        messages.add(AiChatRequest.Message.user(request.message()));
+        messages.add(AiChatRequest.Message.user(request.question()));
 
         String answer = aiApiClient.chat(apiKey, new AiChatRequest(request.model(), messages, 1024, 0.7));
 
@@ -68,7 +68,7 @@ public class ChatService {
         chatMessageRepository.save(ChatMessage.builder()
                 .document(document)
                 .role(MessageRole.USER)
-                .content(request.message())
+                .content(request.question())
                 .build());
 
         ChatMessage assistantMessage = chatMessageRepository.save(ChatMessage.builder()

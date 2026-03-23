@@ -1,5 +1,6 @@
 package kr.ac.cnu.chachastudy.ai.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import kr.ac.cnu.chachastudy.ai.client.AiApiClient;
 import kr.ac.cnu.chachastudy.ai.dto.AiChatRequest;
 import kr.ac.cnu.chachastudy.ai.dto.AiRequest;
@@ -12,20 +13,38 @@ import kr.ac.cnu.chachastudy.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class SummaryService {
 
     private final AiApiClient aiApiClient;
     private final DocumentRepository documentRepository;
     private final AiResponseParser aiResponseParser;
+    private final ObjectMapper objectMapper;
 
-    public SummaryResponse summarize(Long userId, String apiKey, AiRequest request) {
-        Document document = getDocument(userId, request.documentId());
+    public Optional<SummaryResponse> getSummary(Long userId, Long documentId) {
+        Document document = getDocument(userId, documentId);
+        if (document.getCachedSummaryJson() == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(objectMapper.readValue(document.getCachedSummaryJson(), SummaryResponse.class));
+        } catch (Exception e) {
+            log.warn("Failed to parse cached summary for document {}", documentId);
+            return Optional.empty();
+        }
+    }
+
+    @Transactional
+    public SummaryResponse summarize(Long userId, String apiKey, Long documentId, AiRequest request) {
+        Document document = getDocument(userId, documentId);
 
         AiChatRequest chatRequest = new AiChatRequest(
                 request.model(),
@@ -38,7 +57,15 @@ public class SummaryService {
         );
 
         String raw = aiApiClient.chat(apiKey, chatRequest);
-        return aiResponseParser.parse(raw, SummaryResponse.class);
+        SummaryResponse response = aiResponseParser.parse(raw, SummaryResponse.class);
+
+        try {
+            document.updateCachedSummary(objectMapper.writeValueAsString(response));
+        } catch (Exception e) {
+            log.warn("Failed to cache summary for document {}", documentId);
+        }
+
+        return response;
     }
 
     private Document getDocument(Long userId, Long documentId) {

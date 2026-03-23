@@ -45,9 +45,16 @@ public class Document {
     @Column(nullable = false)
     private Long fileSize;
 
+    @Column(columnDefinition = "TEXT")
+    private String cachedSummaryJson;
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    public void updateCachedSummary(String summaryJson) {
+        this.cachedSummaryJson = summaryJson;
+    }
 
     @Builder
     public Document(User user, String originalFileName, String storedFileName,

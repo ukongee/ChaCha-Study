@@ -24,8 +24,8 @@ public class FlashcardService {
     private final DocumentRepository documentRepository;
     private final AiResponseParser aiResponseParser;
 
-    public FlashcardResponse generateFlashcards(Long userId, String apiKey, AiRequest request) {
-        Document document = getDocument(userId, request.documentId());
+    public FlashcardResponse generateFlashcards(Long userId, String apiKey, Long documentId, AiRequest request) {
+        Document document = getDocument(userId, documentId);
 
         AiChatRequest chatRequest = new AiChatRequest(
                 request.model(),

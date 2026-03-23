@@ -24,8 +24,8 @@ public class QuizService {
     private final DocumentRepository documentRepository;
     private final AiResponseParser aiResponseParser;
 
-    public QuizResponse generateQuiz(Long userId, String apiKey, AiRequest request) {
-        Document document = getDocument(userId, request.documentId());
+    public QuizResponse generateQuiz(Long userId, String apiKey, Long documentId, AiRequest request) {
+        Document document = getDocument(userId, documentId);
 
         AiChatRequest chatRequest = new AiChatRequest(
                 request.model(),
@@ -33,7 +33,7 @@ public class QuizService {
                         AiChatRequest.Message.system(PromptTemplate.QUIZ_SYSTEM),
                         AiChatRequest.Message.user(PromptTemplate.quizUser(
                                 document.getExtractedText(),
-                                request.quizCountOrDefault(),
+                                request.countOrDefault(),
                                 request.difficultyOrDefault()
                         ))
                 ),
