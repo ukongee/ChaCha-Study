@@ -1,0 +1,32 @@
+version: '3.8'
+
+# 로컬 개발용 — DB + Redis만 실행, 앱은 IntelliJ에서 직접 실행
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: chachastudy-db
+    environment:
+      POSTGRES_DB: chachastudy
+      POSTGRES_USER: chachastudy
+      POSTGRES_PASSWORD: chachastudy
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chachastudy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: chachastudy-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  postgres-data:
+  redis-data:
