@@ -16,7 +16,7 @@ services:
     restart: always
 
   backend:
-    image: ghcr.io/${GITHUB_REPOSITORY}:latest
+    image: ghcr.io/ukongee/chacha-study:latest
     container_name: chachastudy-backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
