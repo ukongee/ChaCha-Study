@@ -4,7 +4,7 @@ import { use, useState, useRef } from "react";
 import Link from "next/link";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Brain, Loader2, Sparkles, FileText, MessageSquare } from "lucide-react";
+import { ArrowLeft, Brain, Loader2, Sparkles, FileText, MessageSquare, Languages } from "lucide-react";
 
 import {
   Card,
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { aiApi } from "@/lib/api/ai.api";
 import { useApiKeyStore, AI_MODELS } from "@/lib/stores/apiKeyStore";
-import type { SummaryResponse } from "@/types/study.types";
+import type { SummaryResponse, TranslationResponse } from "@/types/study.types";
 
 export default function SummaryPage({
   params,
@@ -36,6 +36,7 @@ export default function SummaryPage({
   const { model, isConfigured } = useApiKeyStore();
   const [selectedModel, setSelectedModel] = useState(model);
   const [activePage, setActivePage] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"original" | "translated">("original");
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const {
@@ -58,6 +59,39 @@ export default function SummaryPage({
       toast.error("요약 생성에 실패했습니다. API 키를 확인해주세요.");
     },
   });
+
+  const { data: translation, isLoading: isTranslationLoading, refetch: refetchTranslation } = useQuery({
+    queryKey: ["translation", documentId],
+    queryFn: () => aiApi.getTranslation(documentId),
+    retry: false,
+    enabled: false,
+  });
+
+  const translateMutation = useMutation({
+    mutationFn: () => aiApi.generateTranslation(documentId, selectedModel),
+    onSuccess: () => {
+      refetchTranslation();
+      toast.success("번역이 완료되었습니다");
+    },
+    onError: () => {
+      toast.error("번역에 실패했습니다. API 키를 확인해주세요.");
+    },
+  });
+
+  const handleTranslateToggle = () => {
+    if (viewMode === "original") {
+      setViewMode("translated");
+      if (!translation) {
+        refetchTranslation().then((result) => {
+          if (!result.data) {
+            translateMutation.mutate();
+          }
+        });
+      }
+    } else {
+      setViewMode("original");
+    }
+  };
 
   const jumpToPage = (page: number) => {
     setActivePage(page);
@@ -91,23 +125,73 @@ export default function SummaryPage({
 
       {/* Split Layout */}
       <div className="flex flex-1 overflow-hidden">
-        {/* 왼쪽: PDF 뷰어 */}
+        {/* 왼쪽: 문서 뷰어 */}
         <div className="w-1/2 border-r bg-gray-50 flex flex-col">
-          <div className="flex items-center gap-2 px-3 py-2 border-b bg-white text-xs text-muted-foreground">
-            <FileText className="w-3 h-3" />
-            원본 문서
+          <div className="flex items-center gap-2 px-3 py-2 border-b bg-white">
+            <FileText className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">원본 문서</span>
             {activePage && (
-              <Badge variant="secondary" className="ml-auto text-xs">
-                {activePage}페이지
+              <Badge variant="secondary" className="text-xs">
+                {activePage}p
               </Badge>
             )}
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                onClick={handleTranslateToggle}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors
+                  ${viewMode === "translated"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+              >
+                {(translateMutation.isPending || isTranslationLoading) ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Languages className="w-3 h-3" />
+                )}
+                {viewMode === "translated" ? "원본 보기" : "번역 보기"}
+              </button>
+            </div>
           </div>
-          <iframe
-            ref={iframeRef}
-            src={`/api/documents/${documentId}/file`}
-            className="flex-1 w-full border-0"
-            title="문서 뷰어"
-          />
+
+          {viewMode === "original" ? (
+            <iframe
+              ref={iframeRef}
+              src={`/api/documents/${documentId}/file`}
+              className="flex-1 w-full border-0"
+              title="문서 뷰어"
+            />
+          ) : (
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {translateMutation.isPending || isTranslationLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center space-y-2">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
+                    <p className="text-sm text-muted-foreground">번역 중...</p>
+                  </div>
+                </div>
+              ) : translation?.pages?.length ? (
+                translation.pages
+                  .filter(p => p.page === (activePage ?? p.page) || !activePage)
+                  .map((p) => (
+                    <div
+                      key={p.page}
+                      className={`rounded-lg border p-3 text-sm leading-relaxed cursor-pointer transition-colors
+                        ${activePage === p.page ? "border-blue-300 bg-blue-50" : "border-gray-200 bg-white hover:bg-gray-50"}`}
+                      onClick={() => jumpToPage(p.page)}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className="text-xs">{p.page}p</Badge>
+                      </div>
+                      <p className="whitespace-pre-wrap text-gray-700">{p.text}</p>
+                    </div>
+                  ))
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-sm text-muted-foreground">번역 데이터가 없습니다</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 오른쪽: 요약 패널 */}

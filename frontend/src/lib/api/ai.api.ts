@@ -6,6 +6,7 @@ import type {
   FlashcardResponse,
   ChatMessage,
   Difficulty,
+  TranslationResponse,
 } from "@/types/study.types";
 
 export const aiApi = {
@@ -64,6 +65,21 @@ export const aiApi = {
     const res = await apiClient.post<ApiResponse<ChatMessage>>(
       `/api/ai/${documentId}/chat`,
       { question, model }
+    );
+    return res.data.data;
+  },
+
+  getTranslation: async (documentId: number): Promise<TranslationResponse | null> => {
+    const res = await apiClient.get<ApiResponse<TranslationResponse>>(
+      `/api/ai/${documentId}/translation`
+    );
+    return res.data.data ?? null;
+  },
+
+  generateTranslation: async (documentId: number, model: string): Promise<TranslationResponse> => {
+    const res = await apiClient.post<ApiResponse<TranslationResponse>>(
+      `/api/ai/${documentId}/translation`,
+      { model }
     );
     return res.data.data;
   },

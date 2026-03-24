@@ -54,6 +54,9 @@ public class Document {
     @Column(columnDefinition = "TEXT")
     private String pageTextsJson;
 
+    @Column(columnDefinition = "TEXT")
+    private String translatedPageTextsJson;
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -68,6 +71,10 @@ public class Document {
 
     public void updatePageTexts(String pageTextsJson) {
         this.pageTextsJson = pageTextsJson;
+    }
+
+    public void updateTranslatedPageTexts(String json) {
+        this.translatedPageTextsJson = json;
     }
 
     @Builder

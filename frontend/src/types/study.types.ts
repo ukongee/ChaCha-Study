@@ -50,3 +50,10 @@ export interface ChatMessage {
 }
 
 export type Difficulty = "EASY" | "MEDIUM" | "HARD";
+
+export interface TranslationResponse {
+  pages: Array<{
+    page: number;
+    text: string;
+  }>;
+}

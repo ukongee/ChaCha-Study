@@ -5,6 +5,7 @@ import kr.ac.cnu.chachastudy.ai.dto.*;
 import kr.ac.cnu.chachastudy.ai.service.FlashcardService;
 import kr.ac.cnu.chachastudy.ai.service.QuizService;
 import kr.ac.cnu.chachastudy.ai.service.SummaryService;
+import kr.ac.cnu.chachastudy.ai.service.TranslationService;
 import kr.ac.cnu.chachastudy.chat.dto.ChatRequest;
 import kr.ac.cnu.chachastudy.chat.dto.ChatResponse;
 import kr.ac.cnu.chachastudy.chat.service.ChatService;
@@ -29,6 +30,7 @@ public class AiController {
     private final QuizService quizService;
     private final FlashcardService flashcardService;
     private final ChatService chatService;
+    private final TranslationService translationService;
 
     // ─── Summary ────────────────────────────────────────────────────
     @GetMapping("/summary")
@@ -90,5 +92,27 @@ public class AiController {
             @Valid @RequestBody ChatRequest request
     ) {
         return ResponseEntity.ok(ApiResponse.ok(chatService.chat(userId, apiKey, documentId, request)));
+    }
+
+    // ─── Translation ─────────────────────────────────────────────────
+    @GetMapping("/translation")
+    public ResponseEntity<ApiResponse<TranslationResponse>> getTranslation(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long documentId
+    ) {
+        return translationService.getTranslation(userId, documentId)
+                .map(t -> ResponseEntity.ok(ApiResponse.ok(t)))
+                .orElse(ResponseEntity.noContent().build());
+    }
+
+    @PostMapping("/translation")
+    public ResponseEntity<ApiResponse<TranslationResponse>> translate(
+            @AuthenticationPrincipal Long userId,
+            @RequestHeader(value = API_KEY_HEADER, required = false) String apiKey,
+            @PathVariable Long documentId,
+            @Valid @RequestBody AiRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                translationService.translate(userId, apiKey, documentId, request)));
     }
 }

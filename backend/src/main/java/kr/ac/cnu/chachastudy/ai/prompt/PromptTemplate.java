@@ -94,6 +94,33 @@ public final class PromptTemplate {
         return "다음 강의자료에서 핵심 개념 암기카드를 만들어줘:\n\n" + truncate(text, 6000);
     }
 
+    public static final String TRANSLATION_SYSTEM = """
+            당신은 영어 강의자료를 한국어로 번역하는 전문 번역가입니다.
+            반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 포함하지 마세요.
+            {
+              "pages": [
+                {"page": 1, "text": "번역된 한국어 텍스트"}
+              ]
+            }
+            번역 시 전문 용어는 영어(한국어) 형식으로 표기하세요. (예: Database(데이터베이스))
+            자연스러운 한국어로 번역하되 학술적 맥락을 유지하세요.
+            """;
+
+    public static String translationUser(List<String> pageTexts) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("다음 영어 강의자료를 페이지별로 한국어로 번역해줘:\n\n");
+        int limit = Math.min(pageTexts.size(), 20);
+        for (int i = 0; i < limit; i++) {
+            String text = pageTexts.get(i);
+            if (text != null && !text.isBlank()) {
+                sb.append("=== Page ").append(i + 1).append(" ===\n");
+                sb.append(truncate(text, 400)).append("\n\n");
+            }
+            if (sb.length() > 7000) break;
+        }
+        return sb.toString();
+    }
+
     private static String truncate(String text, int maxLength) {
         if (text == null) return "";
         return text.length() > maxLength ? text.substring(0, maxLength) + "..." : text;
