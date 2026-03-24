@@ -37,7 +37,7 @@ public class AiApiClient {
 
         try {
             AiChatResponse response = webClient.post()
-                    .uri("/v1/chat/completions")
+                    .uri("/chat/completions/")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                     .bodyValue(request)
                     .retrieve()

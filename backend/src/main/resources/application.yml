@@ -39,7 +39,7 @@ jwt:
   expiration: 86400000  # 24시간 (ms)
 
 ai:
-  base-url: ${AI_BASE_URL:https://api.openai.com}
+  base-url: ${AI_BASE_URL:https://factchat-cloud.mindlogic.ai/v1/gateway}
   api-key: ${AI_API_KEY:}  # 사용자가 직접 헤더로 전달하므로 서버에 저장 안 함
 
 logging:
@@ -75,7 +75,7 @@ jwt:
   expiration: 86400000
 
 ai:
-  base-url: ${AI_BASE_URL:https://cnu-api.ai.kr/v1}
+  base-url: ${AI_BASE_URL:https://factchat-cloud.mindlogic.ai/v1/gateway}
   api-key: ${AI_API_KEY:}
 
 logging:
