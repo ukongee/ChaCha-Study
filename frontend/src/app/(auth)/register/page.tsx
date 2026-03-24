@@ -146,7 +146,8 @@ export default function RegisterPage() {
             <Input
               id="password"
               type="password"
-              placeholder="6자 이상 입력하세요"
+              placeholder="8자 이상 입력하세요"
+              autoComplete="new-password"
               {...register("password")}
               aria-invalid={!!errors.password}
             />
@@ -162,6 +163,7 @@ export default function RegisterPage() {
             <Input
               id="nickname"
               placeholder="닉네임을 입력하세요"
+              autoComplete="off"
               {...register("nickname")}
               aria-invalid={!!errors.nickname}
             />
