@@ -1,7 +1,11 @@
 package kr.ac.cnu.chachastudy.auth.domain;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+
+import java.util.Arrays;
 
 @Getter
 @RequiredArgsConstructor
@@ -146,4 +150,17 @@ public enum Department {
     OTHER("기타");
 
     private final String label;
+
+    @JsonValue
+    public String getLabel() {
+        return label;
+    }
+
+    @JsonCreator
+    public static Department fromLabel(String label) {
+        return Arrays.stream(values())
+                .filter(d -> d.label.equals(label))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown department: " + label));
+    }
 }
