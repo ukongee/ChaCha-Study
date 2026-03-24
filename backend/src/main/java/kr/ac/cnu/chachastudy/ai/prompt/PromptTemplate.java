@@ -1,22 +1,52 @@
 package kr.ac.cnu.chachastudy.ai.prompt;
 
+import java.util.List;
+
 public final class PromptTemplate {
 
     private PromptTemplate() {}
 
     public static final String SUMMARY_SYSTEM = """
-            당신은 대학교 강의자료를 분석하는 학습 도우미입니다.
+            당신은 대학교 강의자료를 분석하는 전문 학습 도우미입니다.
             반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 포함하지 마세요.
             {
-              "briefSummary": "3줄 이내 핵심 요약",
-              "detailedSummary": "상세 요약 (단락 형식)",
-              "keywords": ["키워드1", "키워드2", "키워드3"],
-              "importantPoints": ["중요 포인트1", "중요 포인트2"]
+              "briefSummary": "전체 강의의 핵심을 3줄 이내로 요약",
+              "detailedSummary": "강의 전체 내용을 섹션별로 상세하게 설명 (마크다운 없이 자연스러운 문단으로)",
+              "keywords": [
+                {"text": "핵심 용어나 개념", "page": 해당_페이지_번호}
+              ],
+              "importantPoints": ["시험에 나올 만한 핵심 포인트1", "핵심 포인트2"],
+              "pageSummaries": [
+                {"page": 페이지번호, "title": "페이지 제목 또는 주제", "summary": "해당 페이지의 핵심 내용 2-3줄"}
+              ]
             }
+            keywords의 page는 1부터 시작하는 정수여야 합니다.
+            pageSummaries는 각 페이지/슬라이드별로 생성하되, 내용이 없는 페이지는 제외하세요.
             """;
 
+    public static String summaryUser(String text, List<String> pageTexts) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("아래 강의자료를 페이지별로 분석하여 JSON 형식으로 요약해줘.\n\n");
+
+        if (pageTexts != null && !pageTexts.isEmpty()) {
+            int limit = Math.min(pageTexts.size(), 30); // max 30 pages
+            for (int i = 0; i < limit; i++) {
+                String pageText = pageTexts.get(i);
+                if (pageText != null && !pageText.isBlank()) {
+                    sb.append("=== ").append(i + 1).append("페이지 ===\n");
+                    sb.append(truncate(pageText, 300)).append("\n\n");
+                }
+                if (sb.length() > 7000) break;
+            }
+        } else {
+            sb.append(truncate(text, 6000));
+        }
+
+        return sb.toString();
+    }
+
     public static String summaryUser(String text) {
-        return "다음 강의자료를 분석해서 요약해줘:\n\n" + truncate(text, 6000);
+        return summaryUser(text, null);
     }
 
     public static final String QUIZ_SYSTEM = """

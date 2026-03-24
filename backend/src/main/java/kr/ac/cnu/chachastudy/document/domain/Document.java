@@ -48,12 +48,26 @@ public class Document {
     @Column(columnDefinition = "TEXT")
     private String cachedSummaryJson;
 
+    @Column
+    private String filePath;
+
+    @Column(columnDefinition = "TEXT")
+    private String pageTextsJson;
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
     public void updateCachedSummary(String summaryJson) {
         this.cachedSummaryJson = summaryJson;
+    }
+
+    public void updateFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public void updatePageTexts(String pageTextsJson) {
+        this.pageTextsJson = pageTextsJson;
     }
 
     @Builder

@@ -8,7 +8,6 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.sl.usermodel.Slide;
-import org.apache.poi.sl.usermodel.SlideShow;
 import org.apache.poi.sl.usermodel.TextShape;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
 import org.springframework.stereotype.Service;
@@ -38,16 +37,22 @@ public class FileParserService {
 
     private ParseResult parsePdf(MultipartFile file) throws IOException {
         try (PDDocument document = Loader.loadPDF(file.getBytes())) {
+            int pageCount = document.getNumberOfPages();
+            List<String> pageTexts = new ArrayList<>();
             PDFTextStripper stripper = new PDFTextStripper();
-            String text = stripper.getText(document);
-            return new ParseResult(text.trim(), document.getNumberOfPages());
+            for (int i = 1; i <= pageCount; i++) {
+                stripper.setStartPage(i);
+                stripper.setEndPage(i);
+                pageTexts.add(stripper.getText(document).trim());
+            }
+            String fullText = String.join("\n\n", pageTexts);
+            return new ParseResult(fullText, pageCount, pageTexts);
         }
     }
 
     private ParseResult parsePptx(MultipartFile file) throws IOException {
         try (XMLSlideShow ppt = new XMLSlideShow(file.getInputStream())) {
             List<String> slideTexts = new ArrayList<>();
-
             for (Slide<?, ?> slide : ppt.getSlides()) {
                 StringBuilder slideText = new StringBuilder();
                 for (var shape : slide.getShapes()) {
@@ -62,11 +67,10 @@ public class FileParserService {
                     slideTexts.add(slideText.toString().trim());
                 }
             }
-
             String fullText = String.join("\n\n--- 슬라이드 구분 ---\n\n", slideTexts);
-            return new ParseResult(fullText, ppt.getSlides().size());
+            return new ParseResult(fullText, ppt.getSlides().size(), slideTexts);
         }
     }
 
-    public record ParseResult(String text, int pageCount) {}
+    public record ParseResult(String text, int pageCount, List<String> pageTexts) {}
 }

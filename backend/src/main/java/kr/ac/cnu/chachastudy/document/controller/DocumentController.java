@@ -4,6 +4,7 @@ import kr.ac.cnu.chachastudy.document.dto.DocumentResponse;
 import kr.ac.cnu.chachastudy.document.service.DocumentService;
 import kr.ac.cnu.chachastudy.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,5 +36,13 @@ public class DocumentController {
             @AuthenticationPrincipal Long userId
     ) {
         return ResponseEntity.ok(ApiResponse.ok(documentService.getMyDocuments(userId)));
+    }
+
+    @GetMapping("/{id}/file")
+    public ResponseEntity<Resource> getFile(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id
+    ) {
+        return documentService.getFile(userId, id);
     }
 }

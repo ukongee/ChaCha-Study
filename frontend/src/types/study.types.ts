@@ -7,11 +7,18 @@ export interface Document {
   createdAt: string;
 }
 
+export type Keyword = { text: string; page: number | null } | string;
+
 export interface SummaryResponse {
   briefSummary: string;
   detailedSummary: string;
-  keywords: string[];
+  keywords: Keyword[];
   importantPoints: string[];
+  pageSummaries?: Array<{
+    page: number;
+    title: string;
+    summary: string;
+  }>;
 }
 
 export interface QuizItem {

@@ -46,13 +46,23 @@ public class SummaryService {
     public SummaryResponse summarize(Long userId, String apiKey, Long documentId, AiRequest request) {
         Document document = getDocument(userId, documentId);
 
+        List<String> pageTexts = List.of();
+        if (document.getPageTextsJson() != null) {
+            try {
+                pageTexts = objectMapper.readValue(document.getPageTextsJson(),
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+            } catch (Exception e) {
+                log.warn("Failed to parse page texts for document {}", documentId);
+            }
+        }
+
         AiChatRequest chatRequest = new AiChatRequest(
                 request.model(),
                 List.of(
                         AiChatRequest.Message.system(PromptTemplate.SUMMARY_SYSTEM),
-                        AiChatRequest.Message.user(PromptTemplate.summaryUser(document.getExtractedText()))
+                        AiChatRequest.Message.user(PromptTemplate.summaryUser(document.getExtractedText(), pageTexts))
                 ),
-                2048,
+                4096,
                 0.3
         );
 
