@@ -74,6 +74,10 @@ jwt:
   secret: ${JWT_SECRET}
   expiration: 86400000
 
+ai:
+  base-url: ${AI_BASE_URL:https://cnu-api.ai.kr/v1}
+  api-key: ${AI_API_KEY:}
+
 logging:
   level:
     root: WARN
