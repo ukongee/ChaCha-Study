@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.hslf.usermodel.HSLFSlideShow;
 import org.apache.poi.sl.usermodel.Slide;
 import org.apache.poi.sl.usermodel.TextShape;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
@@ -25,7 +26,8 @@ public class FileParserService {
         try {
             return switch (fileType) {
                 case PDF -> parsePdf(file);
-                case PPT, PPTX -> parsePptx(file);
+                case PPT -> parsePpt(file);
+                case PPTX -> parsePptx(file);
             };
         } catch (BusinessException e) {
             throw e;
@@ -47,6 +49,30 @@ public class FileParserService {
             }
             String fullText = String.join("\n\n", pageTexts);
             return new ParseResult(fullText, pageCount, pageTexts);
+        }
+    }
+
+    private ParseResult parsePpt(MultipartFile file) throws IOException {
+        try (HSLFSlideShow ppt = new HSLFSlideShow(file.getInputStream())) {
+            List<String> slideTexts = new ArrayList<>();
+
+            for (Slide<?, ?> slide : ppt.getSlides()) {
+                StringBuilder slideText = new StringBuilder();
+                for (var shape : slide.getShapes()) {
+                    if (shape instanceof TextShape<?, ?> textShape) {
+                        String text = textShape.getText();
+                        if (text != null && !text.isBlank()) {
+                            slideText.append(text).append("\n");
+                        }
+                    }
+                }
+                if (!slideText.isEmpty()) {
+                    slideTexts.add(slideText.toString().trim());
+                }
+            }
+
+            String fullText = String.join("\n\n--- 슬라이드 구분 ---\n\n", slideTexts);
+            return new ParseResult(fullText, ppt.getSlides().size());
         }
     }
 
