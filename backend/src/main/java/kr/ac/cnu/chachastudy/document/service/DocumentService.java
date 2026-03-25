@@ -152,6 +152,23 @@ public class DocumentService {
         }
     }
 
+    @Transactional
+    public void deleteDocument(Long userId, Long documentId) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND));
+        if (!document.getUser().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+        if (document.getFilePath() != null) {
+            try {
+                Files.deleteIfExists(Paths.get(document.getFilePath()));
+            } catch (IOException e) {
+                log.warn("Failed to delete file: {}", document.getFilePath());
+            }
+        }
+        documentRepository.delete(document);
+    }
+
     private void validateFile(MultipartFile file) {
         if (file.isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);

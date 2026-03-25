@@ -23,4 +23,11 @@ export const documentsApi = {
   deleteDocument: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/documents/${id}`);
   },
+
+  getFileBlobUrl: async (id: number): Promise<string> => {
+    const res = await apiClient.get(`/api/documents/${id}/file`, {
+      responseType: "blob",
+    });
+    return URL.createObjectURL(res.data);
+  },
 };

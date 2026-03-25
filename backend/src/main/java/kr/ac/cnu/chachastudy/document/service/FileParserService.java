@@ -72,7 +72,7 @@ public class FileParserService {
             }
 
             String fullText = String.join("\n\n--- 슬라이드 구분 ---\n\n", slideTexts);
-            return new ParseResult(fullText, ppt.getSlides().size());
+            return new ParseResult(fullText, ppt.getSlides().size(), slideTexts);
         }
     }
 

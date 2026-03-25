@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -10,6 +10,8 @@ import {
   Layers,
   MessageCircle,
   ArrowLeft,
+  Eye,
+  Loader2,
 } from "lucide-react";
 
 import {
@@ -23,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { documentsApi } from "@/lib/api/documents.api";
+import { Button } from "@/components/ui/button";
 import { format } from "@/lib/format";
 
 const STUDY_MODES = [
@@ -63,6 +66,24 @@ export default function StudyDetailPage({
 }) {
   const { id } = use(params);
   const documentId = Number(id);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [fileLoading, setFileLoading] = useState(false);
+
+  const handleViewFile = async () => {
+    if (blobUrl) {
+      setBlobUrl(null);
+      return;
+    }
+    setFileLoading(true);
+    try {
+      const url = await documentsApi.getFileBlobUrl(documentId);
+      setBlobUrl(url);
+    } catch {
+      // 파일 없음
+    } finally {
+      setFileLoading(false);
+    }
+  };
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ["documents"],
@@ -170,6 +191,40 @@ export default function StudyDetailPage({
             );
           })}
         </div>
+      </div>
+
+      {/* 원본 파일 뷰어 */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-gray-900">원본 보기</h2>
+          {doc.fileType === "PDF" && (
+            <Button variant="outline" size="sm" onClick={handleViewFile} disabled={fileLoading}>
+              {fileLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+              {blobUrl ? "닫기" : "파일 열기"}
+            </Button>
+          )}
+        </div>
+
+        {doc.fileType !== "PDF" ? (
+          <p className="text-sm text-muted-foreground">
+            PPT/PPTX 파일은 브라우저 미리보기를 지원하지 않습니다. AI 학습 기능을 이용해주세요.
+          </p>
+        ) : blobUrl ? (
+          <iframe
+            src={blobUrl}
+            className="w-full rounded-lg border"
+            style={{ height: "75vh" }}
+            title={doc.originalFileName}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            버튼을 눌러 PDF를 불러오세요.
+          </p>
+        )}
       </div>
     </div>
   );

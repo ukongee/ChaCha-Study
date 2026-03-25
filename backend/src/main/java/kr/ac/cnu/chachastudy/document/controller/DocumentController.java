@@ -45,4 +45,13 @@ public class DocumentController {
     ) {
         return documentService.getFile(userId, id);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteDocument(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id
+    ) {
+        documentService.deleteDocument(userId, id);
+        return ResponseEntity.noContent().build();
+    }
 }
