@@ -37,7 +37,7 @@ public class QuizService {
                                 request.difficultyOrDefault()
                         ))
                 ),
-                3000,
+                4096,
                 0.5
         );
 
