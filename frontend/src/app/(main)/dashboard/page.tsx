@@ -55,11 +55,21 @@ export default function DashboardPage() {
   const uploadMutation = useMutation({
     mutationFn: (file: File) =>
       documentsApi.uploadDocument(file, setUploadProgress),
-    onSuccess: () => {
+    onSuccess: (doc) => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
-      toast.success("파일이 업로드되었습니다");
+      toast.success("파일 업로드 완료! AI 인덱싱을 시작합니다...");
       setUploadOpen(false);
       setUploadProgress(0);
+
+      // 백그라운드로 RAG 인제스트 트리거 (실패해도 UX 영향 없음)
+      documentsApi.ingestDocument(doc.id)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["documents"] });
+          toast.success("AI 인덱싱 완료! 채팅 기능을 사용할 수 있습니다.");
+        })
+        .catch(() => {
+          toast.warning("AI 인덱싱에 실패했습니다. 문서 상세에서 재시도할 수 있습니다.");
+        });
     },
     onError: () => {
       toast.error("파일 업로드에 실패했습니다");
