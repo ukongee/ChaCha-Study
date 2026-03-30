@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { authApi } from "@/lib/api/auth.api";
+import { authApi } from "@/lib/api/auth";
 import { useAuthStore } from "@/lib/stores/authStore";
 
 const loginSchema = z.object({
@@ -25,7 +25,6 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setAuth } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -39,22 +38,12 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     try {
-      const tokenRes = await authApi.login(data);
-      const token = tokenRes.data.data.accessToken;
-
-      // accessToken을 먼저 localStorage에 저장하여 getMe 호출 시 인터셉터가 사용할 수 있도록
-      localStorage.setItem("accessToken", token);
-
-      const userRes = await authApi.getMe();
-      const user = userRes.data.data;
-
-      setAuth(user, token);
+      await authApi.login(data);
       toast.success("로그인 성공!");
       router.push("/dashboard");
     } catch (err: unknown) {
       const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || "로그인에 실패했습니다";
+        err instanceof Error ? err.message : "로그인에 실패했습니다";
       toast.error(message);
     } finally {
       setIsLoading(false);

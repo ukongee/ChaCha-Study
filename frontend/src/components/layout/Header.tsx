@@ -8,13 +8,10 @@ import { useApiKeyStore } from "@/lib/stores/apiKeyStore";
 
 export default function Header() {
   const router = useRouter();
-  const { user, clearAuth } = useAuthStore();
+  const { user, signOut } = useAuthStore();
   const { isConfigured } = useApiKeyStore();
 
-  const handleLogout = () => {
-    clearAuth();
-    router.push("/login");
-  };
+  const handleLogout = () => signOut();
 
   return (
     <header className="md:hidden sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">

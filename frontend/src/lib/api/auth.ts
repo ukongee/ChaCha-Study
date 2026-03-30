@@ -1,25 +1,34 @@
-import apiClient from "./client";
-import type { ApiResponse } from "@/types/api.types";
-import type { LoginRequest, SignUpRequest, TokenResponse, User } from "@/types/auth.types";
+import { createClient } from "@/lib/supabase/client";
 
 export const authApi = {
-  login: async (data: LoginRequest): Promise<{ user: User; token: string }> => {
-    const res = await apiClient.post<ApiResponse<{ user: User; tokenResponse: TokenResponse }>>(
-      "/api/auth/login",
-      data
-    );
-    return {
-      user: res.data.data.user,
-      token: res.data.data.tokenResponse.accessToken,
-    };
+  login: async (data: { email: string; password: string }) => {
+    const supabase = createClient();
+    const { data: result, error } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
+    });
+    if (error) throw new Error(error.message);
+    return result;
   },
 
-  signup: async (data: SignUpRequest): Promise<void> => {
-    await apiClient.post("/api/auth/signup", data);
+  signup: async (data: { email: string; password: string; name: string }) => {
+    const supabase = createClient();
+    const { error } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: { data: { name: data.name } },
+    });
+    if (error) throw new Error(error.message);
   },
 
-  getMe: async (): Promise<User> => {
-    const res = await apiClient.get<ApiResponse<User>>("/api/auth/me");
-    return res.data.data;
+  signOut: async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+  },
+
+  getUser: async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
   },
 };

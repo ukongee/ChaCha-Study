@@ -3,7 +3,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { initAuthListener } from "@/lib/stores/authStore";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -11,12 +12,17 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 1000 * 60, // 1분
+            staleTime: 1000 * 60,
             retry: 1,
           },
         },
       })
   );
+
+  useEffect(() => {
+    const unsubscribe = initAuthListener();
+    return unsubscribe;
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

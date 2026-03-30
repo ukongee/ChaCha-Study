@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { LogOut, Save, Key } from "lucide-react";
 
@@ -27,8 +26,7 @@ import { useAuthStore } from "@/lib/stores/authStore";
 import { useApiKeyStore, AI_MODELS } from "@/lib/stores/apiKeyStore";
 
 export default function SettingsPage() {
-  const router = useRouter();
-  const { user, clearAuth } = useAuthStore();
+  const { user, signOut } = useAuthStore();
   const { apiKey, model, setApiKey, setModel } = useApiKeyStore();
 
   const [localApiKey, setLocalApiKey] = useState(apiKey);
@@ -41,9 +39,8 @@ export default function SettingsPage() {
   };
 
   const handleLogout = () => {
-    clearAuth();
+    signOut();
     toast.success("로그아웃되었습니다");
-    router.push("/login");
   };
 
   return (
@@ -65,12 +62,12 @@ export default function SettingsPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-muted-foreground text-xs">닉네임</Label>
-              <p className="text-sm font-medium mt-1">{user?.nickname ?? "-"}</p>
+              <p className="text-sm font-medium mt-1">{user?.user_metadata?.name ?? "-"}</p>
             </div>
             <div>
               <Label className="text-muted-foreground text-xs">학과</Label>
               <p className="text-sm font-medium mt-1">
-                {user?.department ?? "-"}
+                {user?.user_metadata?.department ?? "-"}
               </p>
             </div>
             <div className="col-span-2">

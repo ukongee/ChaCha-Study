@@ -1,9 +1,10 @@
 export interface Document {
-  id: number;
+  id: string;                              // UUID
   originalFileName: string;
   fileType: "PDF" | "PPT" | "PPTX";
   pageCount: number;
   fileSize: number;
+  embeddingStatus: "pending" | "processing" | "done" | "failed";
   createdAt: string;
 }
 
@@ -27,6 +28,7 @@ export interface QuizItem {
   options: string[];
   answer: string;
   explanation: string;
+  sourcePage?: number | null;
 }
 
 export interface QuizResponse {
@@ -36,20 +38,27 @@ export interface QuizResponse {
 export interface FlashcardItem {
   front: string;
   back: string;
+  sourcePage?: number | null;
 }
 
 export interface FlashcardResponse {
   flashcards: FlashcardItem[];
 }
 
+export type Difficulty = "EASY" | "MEDIUM" | "HARD";
+
+// 하위 호환 re-export (기존 import 경로 유지)
 export interface ChatMessage {
-  id: number;
+  id: string;
   role: "user" | "assistant";
   content: string;
+  sources?: Array<{
+    page: number | null;
+    sectionTitle: string | null;
+    excerpt: string;
+  }>;
   createdAt: string;
 }
-
-export type Difficulty = "EASY" | "MEDIUM" | "HARD";
 
 export interface TranslationResponse {
   pages: Array<{

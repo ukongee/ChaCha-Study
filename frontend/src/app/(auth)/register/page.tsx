@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { authApi } from "@/lib/api/auth.api";
+import { authApi } from "@/lib/api/auth";
 
 const DEPARTMENTS = [
   // 인문대학
@@ -99,7 +99,7 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
     try {
-      await authApi.signUp(data);
+      await authApi.signup({ email: data.email, password: data.password, name: data.nickname });
       toast.success("회원가입 완료! 로그인해주세요.");
       router.push("/login");
     } catch (err: unknown) {

@@ -1,63 +1,72 @@
 import apiClient from "./client";
-import type { ApiResponse } from "@/types/api.types";
 import type {
   SummaryResponse,
   QuizResponse,
   FlashcardResponse,
-  ChatMessage,
   Difficulty,
 } from "@/types/study.types";
 
-export const aiApi = {
-  getSummary: async (documentId: number): Promise<SummaryResponse> => {
-    const res = await apiClient.get<ApiResponse<SummaryResponse>>(
-      `/api/ai/${documentId}/summary`
-    );
-    return res.data.data;
-  },
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sources?: Array<{
+    page: number | null;
+    sectionTitle: string | null;
+    excerpt: string;
+  }>;
+  createdAt: string;
+}
 
-  generateSummary: async (documentId: number, model: string): Promise<SummaryResponse> => {
-    const res = await apiClient.post<ApiResponse<SummaryResponse>>(
+export const aiApi = {
+  generateSummary: async (documentId: string, model: string): Promise<SummaryResponse> => {
+    const res = await apiClient.post<SummaryResponse>(
       `/api/ai/${documentId}/summary`,
       { model }
     );
-    return res.data.data;
+    return res.data;
   },
 
   generateQuiz: async (
-    documentId: number,
+    documentId: string,
     params: { difficulty: Difficulty; count: number; model: string }
   ): Promise<QuizResponse> => {
-    const res = await apiClient.post<ApiResponse<QuizResponse>>(
+    const res = await apiClient.post<QuizResponse>(
       `/api/ai/${documentId}/quiz`,
       params
     );
-    return res.data.data;
+    return res.data;
   },
 
   generateFlashcard: async (
-    documentId: number,
-    params: { count: number; model: string }
+    documentId: string,
+    params: { model: string }
   ): Promise<FlashcardResponse> => {
-    const res = await apiClient.post<ApiResponse<FlashcardResponse>>(
+    const res = await apiClient.post<FlashcardResponse>(
       `/api/ai/${documentId}/flashcard`,
       params
     );
-    return res.data.data;
+    return res.data;
   },
 
-  getChatHistory: async (documentId: number): Promise<ChatMessage[]> => {
-    const res = await apiClient.get<ApiResponse<ChatMessage[]>>(
-      `/api/ai/${documentId}/chat`
-    );
-    return res.data.data;
+  getChatHistory: async (documentId: string): Promise<ChatMessage[]> => {
+    const res = await apiClient.get<ChatMessage[]>(`/api/ai/${documentId}/chat`);
+    return res.data;
   },
 
-  sendChat: async (documentId: number, question: string, model: string): Promise<ChatMessage> => {
-    const res = await apiClient.post<ApiResponse<ChatMessage>>(
+  sendChat: async (
+    documentId: string,
+    question: string,
+    model: string
+  ): Promise<ChatMessage> => {
+    const res = await apiClient.post<ChatMessage>(
       `/api/ai/${documentId}/chat`,
       { question, model }
     );
-    return res.data.data;
+    return res.data;
+  },
+
+  clearChatHistory: async (documentId: string): Promise<void> => {
+    await apiClient.delete(`/api/ai/${documentId}/chat`);
   },
 };

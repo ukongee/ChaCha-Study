@@ -57,8 +57,8 @@ export default function Sidebar() {
       {/* 유저 정보 */}
       {user && (
         <div className="px-3 pt-4 border-t border-gray-100">
-          <p className="text-sm font-medium text-gray-900">{user.nickname}</p>
-          <p className="text-xs text-gray-500 mt-0.5">{user.department}</p>
+          <p className="text-sm font-medium text-gray-900">{user.user_metadata?.name ?? user.email}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{user.user_metadata?.department ?? ""}</p>
         </div>
       )}
     </aside>

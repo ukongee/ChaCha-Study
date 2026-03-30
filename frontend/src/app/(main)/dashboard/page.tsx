@@ -33,7 +33,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/lib/stores/authStore";
-import { documentsApi } from "@/lib/api/documents.api";
+import { documentsApi } from "@/lib/api/documents";
 import type { Document } from "@/types/study.types";
 
 const FILE_ACCEPT = ".pdf,.ppt,.pptx";
@@ -116,7 +116,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            안녕하세요, {user?.nickname ?? "학생"}님!
+            안녕하세요, {user?.user_metadata?.name ?? "학생"}님!
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             오늘도 효율적인 학습을 시작해보세요
