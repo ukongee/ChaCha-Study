@@ -9,11 +9,6 @@ import { parsePdf } from "@/lib/parser/pdf";
 import { parsePptx, parsePpt } from "@/lib/parser/pptx";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
-const ALLOWED_TYPES = [
-  "application/pdf",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-];
 
 function getFileType(filename: string, mime: string): "PDF" | "PPT" | "PPTX" | null {
   const ext = filename.split(".").pop()?.toUpperCase();

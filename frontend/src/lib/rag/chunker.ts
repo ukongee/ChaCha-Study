@@ -52,7 +52,6 @@ export function chunkDocument(pageTexts: PageText[]): Chunk[] {
   const OVERLAP_TOKENS = 80;
 
   let currentSection = "도입";
-  let currentPage = 1;
   let buffer = "";
   let bufferPage = 1;
   let chunkIndex = 0;
@@ -80,7 +79,6 @@ export function chunkDocument(pageTexts: PageText[]): Chunk[] {
   }
 
   for (const { page, text } of pageTexts) {
-    currentPage = page;
     const lines = text.split("\n");
 
     for (const line of lines) {

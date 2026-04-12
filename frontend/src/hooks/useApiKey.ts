@@ -1,18 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 
 const STORAGE_KEY = "cnu_ai_api_key";
 
 export function useApiKey() {
-  const [apiKey, setApiKeyState] = useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setApiKeyState(stored);
-    setIsLoaded(true);
-  }, []);
+  const [apiKey, setApiKeyState] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(STORAGE_KEY);
+  });
+  const isLoaded = true;
 
   const setApiKey = useCallback((key: string) => {
     localStorage.setItem(STORAGE_KEY, key);

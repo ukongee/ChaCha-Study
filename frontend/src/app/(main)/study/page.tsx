@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Upload, BookOpen, Loader2, Trash2, AlertCircle } from "lucide-react";
+import { Upload, BookOpen, Loader2, Trash2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { documentsApi } from "@/lib/api/documents.api";
 import type { Document } from "@/types/study.types";

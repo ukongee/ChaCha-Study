@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, RefreshCw, Copy, Check } from "lucide-react";
+import { RefreshCw, Copy, Check } from "lucide-react";
 import { useState } from "react";
 
 interface TabShellProps {

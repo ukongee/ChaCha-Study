@@ -30,20 +30,20 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfFetchError, setPdfFetchError] = useState(false);
 
   const { data: doc, isLoading } = useQuery({
     queryKey: ["document", id],
     queryFn: () => documentsApi.getDocument(id),
   });
 
+  const pdfLoading = doc?.fileType === "PDF" && pdfUrl === null && !pdfFetchError;
+
   useEffect(() => {
     if (doc?.fileType === "PDF") {
-      setPdfLoading(true);
       documentsApi.getFileUrl(id)
         .then((url) => setPdfUrl(url))
-        .catch(() => {})
-        .finally(() => setPdfLoading(false));
+        .catch(() => setPdfFetchError(true));
     }
   }, [doc, id]);
 
