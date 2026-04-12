@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import apiClient from "@/lib/api/client";
+import MarkdownText from "@/components/ui/MarkdownText";
 import type { SummaryResponse } from "@/types/study.types";
 import { Loader2, ChevronDown, Copy, Check, RefreshCw } from "lucide-react";
 
@@ -179,9 +180,10 @@ export default function SummaryTab({ documentId, pageCount, autoGenerate }: Prop
                         {page.summary}
                       </p>
                       {(page.detailedExplanation ?? page.easyExplanation) && (
-                        <p className="text-base text-[#1A2050] leading-relaxed whitespace-pre-wrap mb-3">
-                          {page.detailedExplanation ?? page.easyExplanation}
-                        </p>
+                        <MarkdownText
+                          content={page.detailedExplanation ?? page.easyExplanation ?? ""}
+                          className="mb-3"
+                        />
                       )}
                       {page.keyTerms && page.keyTerms.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[#D1D9F0]">
