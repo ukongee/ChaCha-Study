@@ -57,7 +57,8 @@ export async function POST(req: Request) {
 
   // Upload to Supabase Storage (path: docId placeholder — we insert doc first to get id)
   const tempId = crypto.randomUUID();
-  const storagePath = `${tempId}/${file.name}`;
+  const ext = file.name.split(".").pop() ?? "bin";
+  const storagePath = `${tempId}/original.${ext}`;
 
   const { error: storageError } = await supabase.storage
     .from("documents")
