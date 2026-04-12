@@ -12,7 +12,7 @@ import MindmapTab from "@/components/study/tabs/MindmapTab";
 import QuizTab from "@/components/study/tabs/QuizTab";
 import FlashcardsTab from "@/components/study/tabs/FlashcardsTab";
 import NotesTab from "@/components/study/tabs/NotesTab";
-import TutorTab from "@/components/study/tabs/TutorTab";
+// import TutorTab from "@/components/study/tabs/TutorTab";
 
 const TABS = [
   { key: "summary",     label: "요약" },
@@ -21,7 +21,7 @@ const TABS = [
   { key: "quiz",        label: "퀴즈" },
   { key: "flashcards",  label: "플래시카드" },
   { key: "notes",       label: "메모" },
-  { key: "tutor",       label: "AI Tutor" },
+  // { key: "tutor",       label: "AI Tutor" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -78,6 +78,7 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
             <p className="text-base font-semibold text-[#0F1729] truncate">{doc.originalFileName}</p>
             <p className="text-sm text-[#8B96B0]">{doc.pageCount}페이지</p>
           </div>
+          {/* Embedding status badge hidden (AI Tutor disabled)
           <span className={`text-sm px-2.5 py-0.5 rounded-md font-medium ${
             doc.embeddingStatus === "done"
               ? "bg-green-100 text-green-600 border border-green-200"
@@ -90,6 +91,7 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
               : doc.embeddingStatus === "failed" ? "인덱싱 실패"
               : "대기 중"}
           </span>
+          */}
         </div>
 
         {/* PDF content */}
@@ -145,7 +147,7 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
           {activeTab === "quiz"        && <QuizTab        documentId={id} />}
           {activeTab === "flashcards"  && <FlashcardsTab  documentId={id} />}
           {activeTab === "notes"       && <NotesTab       documentId={id} />}
-          {activeTab === "tutor"       && <TutorTab       documentId={id} embeddingStatus={doc.embeddingStatus} />}
+          {/* {activeTab === "tutor"       && <TutorTab       documentId={id} embeddingStatus={doc.embeddingStatus} />} */}
         </div>
       </div>
     </div>

@@ -34,8 +34,8 @@ export default function StudyListPage() {
       toast.success(`"${file.name}" 업로드 완료`);
       qc.invalidateQueries({ queryKey: ["documents"] });
 
-      // Trigger background ingest
-      documentsApi.ingestDocument(doc.id).catch(() => {});
+      // // Trigger background ingest (disabled: RAG hidden)
+      // documentsApi.ingestDocument(doc.id).catch(() => {});
     } catch {
       toast.error("업로드에 실패했습니다.");
     } finally {
