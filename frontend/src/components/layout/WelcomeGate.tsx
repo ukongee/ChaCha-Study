@@ -30,8 +30,7 @@ const FEATURES = [
 ];
 
 
-function ApiKeyModal({ onClose }: { onClose: () => void }) {
-  const { setApiKey } = useApiKey();
+function ApiKeyModal({ onClose, onKeySet }: { onClose: () => void; onKeySet: (key: string) => void }) {
   const [input, setInput] = useState("");
   const [show, setShow] = useState(false);
   const [validating, setValidating] = useState(false);
@@ -61,7 +60,7 @@ function ApiKeyModal({ onClose }: { onClose: () => void }) {
       // 네트워크 오류는 무시 — 키 형식이 맞으면 진행
     }
 
-    setApiKey(key);
+    onKeySet(key);
     toast.success("차차스터디를 시작합니다!");
     onClose();
     setValidating(false);
@@ -171,7 +170,7 @@ function ApiKeyModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function WelcomeGate({ children }: { children: React.ReactNode }) {
-  const { apiKey } = useApiKey();
+  const { apiKey, setApiKey } = useApiKey();
   const [hasMounted, setHasMounted] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -255,7 +254,7 @@ export default function WelcomeGate({ children }: { children: React.ReactNode })
         </div>
       </div>
 
-      {modalOpen && <ApiKeyModal onClose={() => setModalOpen(false)} />}
+      {modalOpen && <ApiKeyModal onClose={() => setModalOpen(false)} onKeySet={setApiKey} />}
     </>
   );
 }
