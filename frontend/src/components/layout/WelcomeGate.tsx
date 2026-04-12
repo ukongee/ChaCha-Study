@@ -174,6 +174,7 @@ export default function WelcomeGate({ children }: { children: React.ReactNode })
   const [hasMounted, setHasMounted] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setHasMounted(true), []);
 
   // SSR + 첫 페인트: 항상 children 렌더 (hydration mismatch 방지)
