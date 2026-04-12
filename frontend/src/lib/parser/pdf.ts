@@ -31,7 +31,7 @@ if (typeof globalThis.DOMMatrix === "undefined") {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    multiply(_other: any) { return new (globalThis as any).DOMMatrix(); }
+    multiply(_o: any) { return new (globalThis as any).DOMMatrix(); }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     translate(_tx: number, _ty: number, _tz = 0) { return new (globalThis as any).DOMMatrix(); }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,10 +45,10 @@ if (typeof globalThis.DOMMatrix === "undefined") {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     flipY() { return new (globalThis as any).DOMMatrix(); }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    transformPoint(point: any) { return point; }
+    transformPoint(p: any) { return p; }
     toFloat32Array() { return new Float32Array(16); }
     toFloat64Array() { return new Float64Array(16); }
-    toString() { return `matrix(${this.a}, ${this.b}, ${this.c}, ${this.d}, ${this.e}, ${this.f})`; }
+    toString() { return `matrix(${this.a},${this.b},${this.c},${this.d},${this.e},${this.f})`; }
   };
 }
 
@@ -60,9 +60,14 @@ export interface ParseResult {
 
 export async function parsePdf(buffer: ArrayBuffer): Promise<ParseResult> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const { resolve } = await import("path");
 
-  // Disable worker — runs in main thread (required for Vercel serverless)
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+  // pdfjs v5 fake-worker: dynamic-imports workerSrc in the main thread
+  const workerPath = resolve(
+    process.cwd(),
+    "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
+  );
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
 
   const loadingTask = pdfjsLib.getDocument({
     data: new Uint8Array(buffer),
