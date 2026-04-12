@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useApiKey } from "@/hooks/useApiKey";
 import {
@@ -123,7 +123,13 @@ function ApiKeyModal({ onClose }: { onClose: () => void }) {
 
 export default function WelcomeGate({ children }: { children: React.ReactNode }) {
   const { apiKey } = useApiKey();
+  const [hasMounted, setHasMounted] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => setHasMounted(true), []);
+
+  // SSR + first paint: always render children (avoids hydration mismatch)
+  if (!hasMounted) return <>{children}</>;
 
   if (apiKey) return <>{children}</>;
 
