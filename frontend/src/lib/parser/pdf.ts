@@ -7,13 +7,8 @@ export interface ParseResult {
 export async function parsePdf(buffer: ArrayBuffer): Promise<ParseResult> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
-  // Point to the actual worker file so pdfjs can set up its fake/real worker in Node.js
-  const { resolve } = await import("path");
-  const workerPath = resolve(
-    process.cwd(),
-    "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
-  );
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
+  // Disable worker — runs in main thread (required for Vercel serverless)
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "";
 
   const loadingTask = pdfjsLib.getDocument({
     data: new Uint8Array(buffer),
