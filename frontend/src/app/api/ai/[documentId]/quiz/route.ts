@@ -1,10 +1,12 @@
 /**
  * Quiz generation — Function Calling for structured output.
- * Model: claude-sonnet-4-6 (precise function calling + educational question quality)
+ * Model: claude-sonnet-4-6
+ * 입력 우선순위: 저장된 요약 → extracted_text
  * Caches result in generated_contents table.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { getSummaryContext, NO_LATEX_RULE } from "@/lib/ai/context";
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -58,14 +60,6 @@ export async function POST(req: Request, { params }: Params) {
   const difficulty: string = body.difficulty ?? "MEDIUM";
   const force: boolean = body.force ?? false;
 
-  const { data: doc } = await supabase
-    .from("documents")
-    .select("extracted_text")
-    .eq("id", documentId)
-    .single();
-
-  if (!doc) return new Response("Not found", { status: 404 });
-
   if (!force) {
     const { data: cached } = await supabase
       .from("generated_contents")
@@ -73,7 +67,27 @@ export async function POST(req: Request, { params }: Params) {
       .eq("document_id", documentId)
       .eq("content_type", "quiz")
       .single();
-    if (cached) return Response.json(JSON.parse(cached.content_json));
+    if (cached) {
+      try { return Response.json(JSON.parse(cached.content_json)); }
+      catch { /* 재생성 */ }
+    }
+  }
+
+  // 입력 우선순위: 요약 캐시 → extracted_text
+  let contextText = await getSummaryContext(documentId, 8000);
+
+  if (!contextText) {
+    const { data: doc } = await supabase
+      .from("documents")
+      .select("extracted_text")
+      .eq("id", documentId)
+      .single();
+    if (!doc) return new Response("Not found", { status: 404 });
+    contextText = (doc.extracted_text ?? "").slice(0, 8000);
+  }
+
+  if (!contextText.trim()) {
+    return new Response("퀴즈 생성에 필요한 내용이 없습니다. 먼저 요약을 생성해주세요.", { status: 400 });
   }
 
   const difficultyDesc =
@@ -90,9 +104,9 @@ export async function POST(req: Request, { params }: Params) {
         {
           role: "system",
           content: `당신은 대학교 시험 문제를 출제하는 교수입니다.
+${NO_LATEX_RULE}
 
 다음 기준을 반드시 지켜 문제를 생성하세요:
-
 1. 단순 암기가 아닌 이해 기반 문제 우선
 2. 실제 시험에 나올 법한 형태와 표현
 3. 오답 선택지는 그럴듯하지만 명확히 틀린 내용으로 구성
@@ -110,7 +124,7 @@ export async function POST(req: Request, { params }: Params) {
         },
         {
           role: "user",
-          content: `다음 강의자료를 바탕으로 ${difficultyDesc} 4지선다 문제 ${count}개를 출제해줘. 각 문제의 선택지와 상세한 해설을 반드시 포함해줘.\n\n${(doc.extracted_text ?? "").slice(0, 8000)}`,
+          content: `다음 강의자료를 바탕으로 ${difficultyDesc} 4지선다 문제 ${count}개를 출제해줘. 각 문제의 선택지와 상세한 해설을 반드시 포함해줘.\n\n${contextText}`,
         },
       ],
       tools: [generateQuizTool],

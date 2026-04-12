@@ -12,7 +12,7 @@ import MindmapTab from "@/components/study/tabs/MindmapTab";
 import QuizTab from "@/components/study/tabs/QuizTab";
 import FlashcardsTab from "@/components/study/tabs/FlashcardsTab";
 import NotesTab from "@/components/study/tabs/NotesTab";
-// import TutorTab from "@/components/study/tabs/TutorTab";
+import TutorTab from "@/components/study/tabs/TutorTab";
 
 const TABS = [
   { key: "summary",     label: "요약" },
@@ -21,7 +21,7 @@ const TABS = [
   { key: "quiz",        label: "퀴즈" },
   { key: "flashcards",  label: "플래시카드" },
   { key: "notes",       label: "메모" },
-  // { key: "tutor",       label: "AI Tutor" },
+  { key: "tutor",       label: "AI Tutor" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -157,7 +157,7 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
           <div className={activeTab === "quiz"        ? "" : "hidden"}><QuizTab        documentId={id} autoGenerate={autoGenerate} /></div>
           <div className={activeTab === "flashcards"  ? "" : "hidden"}><FlashcardsTab  documentId={id} autoGenerate={autoGenerate} /></div>
           <div className={activeTab === "notes"       ? "" : "hidden"}><NotesTab       documentId={id} /></div>
-          {/* <div className={activeTab === "tutor" ? "" : "hidden"}><TutorTab documentId={id} embeddingStatus={doc.embeddingStatus} /></div> */}
+          <div className={activeTab === "tutor"       ? "" : "hidden"}><TutorTab       documentId={id} /></div>
         </div>
       </div>
     </div>

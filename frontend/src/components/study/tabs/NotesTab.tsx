@@ -40,8 +40,14 @@ export default function NotesTab({ documentId }: { documentId: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-40">
-        <Loader2 className="w-5 h-5 animate-spin text-[#8B96B0]" />
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#D1D9F0] bg-white shrink-0">
+          <h2 className="text-base font-bold text-[#0F1729]">메모</h2>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <img src="/chacha.webp" alt="차차" className="w-16 h-16 object-contain animate-pulse" />
+          <p className="text-[#5B6887] text-base font-medium">불러오는 중...</p>
+        </div>
       </div>
     );
   }
@@ -65,8 +71,9 @@ export default function NotesTab({ documentId }: { documentId: string }) {
         <textarea
           value={content}
           onChange={(e) => handleChange(e.target.value)}
-          placeholder="강의를 들으며 메모를 작성하세요... (자동 저장됩니다)"
+          placeholder={`강의를 들으며 메모를 작성하세요...\n\n자동 저장됩니다.`}
           className="w-full h-full resize-none bg-transparent text-base text-[#1A2050] placeholder-[#B0BAD0] p-5 focus:outline-none leading-relaxed"
+          style={{ minHeight: "calc(100vh - 200px)" }}
         />
       </div>
     </div>

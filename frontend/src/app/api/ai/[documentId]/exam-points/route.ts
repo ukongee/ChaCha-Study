@@ -1,33 +1,24 @@
 /**
  * Exam Points API — 시험 대비 포인트 분석
  * Model: claude-sonnet-4-6
- * Output: { examPoints[], confusingConcepts[], memorizationPoints[] }
+ * 입력 우선순위: 저장된 요약 → extracted_text
  * Caches result in generated_contents table.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { getSummaryContext, NO_LATEX_RULE } from "@/lib/ai/context";
 
 const MODEL = "claude-sonnet-4-6";
 
 const EXAM_POINTS_SYSTEM = `당신은 대학교 시험 출제 전문가입니다.
+${NO_LATEX_RULE}
 
 강의자료를 분석하여 시험에 나올 가능성이 높은 내용을 체계적으로 정리하세요.
 
 [분석 기준]
 1. examPoints: 시험에 직접 출제될 가능성이 높은 개념, 정의, 공식, 조건
-   - 교수가 반복 강조한 내용
-   - 정의나 조건이 명확한 개념
-   - 다른 개념과 비교되는 내용
-
 2. confusingConcepts: 학생들이 혼동하기 쉬운 유사 개념 쌍
-   - 이름은 비슷하지만 의미가 다른 개념
-   - 조건이 반대인 개념
-   - 자주 틀리는 개념 구분
-
-3. memorizationPoints: 반드시 암기해야 할 내용
-   - 공식, 정의, 조건, 법칙
-   - 예외 케이스
-   - 특정 숫자/기준값
+3. memorizationPoints: 반드시 암기해야 할 내용 (공식, 정의, 조건, 법칙)
 
 [출력 제한]
 - examPoints: 최대 10개
@@ -54,7 +45,7 @@ const EXAM_POINTS_SYSTEM = `당신은 대학교 시험 출제 전문가입니다
   ],
   "memorizationPoints": [
     {
-      "content": "반드시 암기해야 할 내용 (정의/공식/조건을 완전한 문장으로)",
+      "content": "반드시 암기해야 할 내용 (정의/조건을 완전한 문장으로)",
       "page": 페이지번호
     }
   ]
@@ -93,14 +84,6 @@ export async function POST(req: Request, { params }: Params) {
   const body = await req.json().catch(() => ({}));
   const force: boolean = body.force ?? false;
 
-  const { data: doc } = await supabase
-    .from("documents")
-    .select("extracted_text, page_texts_json")
-    .eq("id", documentId)
-    .single();
-
-  if (!doc) return new Response("Not found", { status: 404 });
-
   if (!force) {
     const { data: cached } = await supabase
       .from("generated_contents")
@@ -108,25 +91,37 @@ export async function POST(req: Request, { params }: Params) {
       .eq("document_id", documentId)
       .eq("content_type", "exam-points")
       .single();
-
     if (cached) {
-      try {
-        return Response.json(JSON.parse(cached.content_json));
-      } catch { /* 재생성 */ }
+      try { return Response.json(JSON.parse(cached.content_json)); }
+      catch { /* 재생성 */ }
     }
   }
 
-  // 전체 문서 기준 분석 (최대 10000자)
-  const pageTexts: string[] = doc.page_texts_json ? JSON.parse(doc.page_texts_json) : [];
-  let contextText: string;
-  if (pageTexts.length > 0) {
-    contextText = pageTexts
-      .slice(0, 15)
-      .filter((t) => t?.trim())
-      .map((t, i) => `=== ${i + 1}페이지 ===\n${t.slice(0, 800)}`)
-      .join("\n\n");
-  } else {
-    contextText = (doc.extracted_text ?? "").slice(0, 10000);
+  // 입력 우선순위: 요약 캐시 → page_texts_json → extracted_text
+  let contextText = await getSummaryContext(documentId, 10000);
+
+  if (!contextText) {
+    const { data: doc } = await supabase
+      .from("documents")
+      .select("extracted_text, page_texts_json")
+      .eq("id", documentId)
+      .single();
+    if (!doc) return new Response("Not found", { status: 404 });
+
+    const pageTexts: string[] = doc.page_texts_json ? JSON.parse(doc.page_texts_json) : [];
+    if (pageTexts.length > 0) {
+      contextText = pageTexts
+        .slice(0, 15)
+        .filter((t) => t?.trim())
+        .map((t, i) => `=== ${i + 1}페이지 ===\n${t.slice(0, 800)}`)
+        .join("\n\n");
+    } else {
+      contextText = (doc.extracted_text ?? "").slice(0, 10000);
+    }
+  }
+
+  if (!contextText.trim()) {
+    return new Response("시험 포인트 생성에 필요한 내용이 없습니다. 먼저 요약을 생성해주세요.", { status: 400 });
   }
 
   const ai = createAiClient(apiKey);

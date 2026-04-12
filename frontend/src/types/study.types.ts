@@ -107,4 +107,16 @@ export interface ChatMessage {
     excerpt: string;
   }>;
   createdAt?: string;
+  needsWiki?: boolean;
+}
+
+export interface WikiSection {
+  title: string;
+  content: string;
+  keywords: string[];
+}
+
+export interface WikiData {
+  sections: WikiSection[];
+  generatedAt: string;
 }

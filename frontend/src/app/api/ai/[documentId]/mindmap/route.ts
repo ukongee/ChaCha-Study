@@ -1,10 +1,12 @@
 /**
  * Mindmap generation — rich concept-hierarchy tree.
  * Model: claude-sonnet-4-6
+ * 입력 우선순위: 저장된 요약 → extracted_text
  * Caches result in generated_contents table.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { getSummaryContext, NO_LATEX_RULE } from "@/lib/ai/context";
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -12,60 +14,89 @@ interface Params {
   params: Promise<{ documentId: string }>;
 }
 
-// Recursive schema helper
-function nodeSchema(depth: number): object {
-  const base: Record<string, object> = {
-    label: { type: "string", description: "노드 라벨 (10자 이내 핵심 키워드)" },
-    summary: { type: "string", description: "이 개념의 한 줄 설명 (30자 이내)" },
-  };
-  if (depth > 0) {
-    base.children = {
-      type: "array",
-      description: `하위 개념 (${depth === 3 ? "2-6" : "1-4"}개)`,
-      items: { type: "object", properties: nodeSchema(depth - 1), required: ["label"] },
-    };
-  }
-  return base;
-}
-
-const mindmapTool = {
-  type: "function" as const,
-  function: {
-    name: "generate_mindmap",
-    description: "강의자료의 개념 계층 구조 마인드맵을 생성합니다.",
-    parameters: {
-      type: "object",
-      properties: {
-        title: { type: "string", description: "강의 전체 핵심 주제 (15자 이내)" },
-        summary: { type: "string", description: "강의 전체 한 줄 요약 (50자 이내)" },
-        children: {
-          type: "array",
-          description: "대주제 노드 (4-8개)",
-          items: {
-            type: "object",
-            properties: nodeSchema(3),
-            required: ["label"],
-          },
-        },
-      },
-      required: ["title", "children"],
-    },
-  },
-};
-
-const SYSTEM_PROMPT = `당신은 강의자료를 NotebookLM 수준의 풍부한 마인드맵으로 구조화하는 전문가입니다.
+const SYSTEM_PROMPT = `당신은 강의자료를 풍부한 마인드맵으로 구조화하는 전문가입니다.
+${NO_LATEX_RULE}
 
 [마인드맵 생성 원칙]
 1. 페이지 순서가 아니라 개념 중심으로 묶기 — 비슷한 개념은 한 그룹으로
 2. 계층 구조:
    - root: 강의 전체 핵심 주제 (1개)
-   - 1단계(대주제): 강의의 주요 개념 축 (4~8개) — 정의·종류·원리·적용·비교 등 자연스러운 축으로
+   - 1단계(대주제): 강의의 주요 개념 축 (4~8개)
    - 2단계(중간 개념): 각 대주제의 세부 개념 (2~6개)
-   - 3단계(세부 항목): 정의·조건·예시·변형 등 (1~4개, 필요한 경우만)
-3. 각 노드에 label(핵심 키워드)과 summary(한 줄 설명) 모두 작성
-4. label은 짧고 명확하게 (10자 이내 권장)
-5. 너무 단편적인 leaf만 나열하지 말고, 중간 레벨 노드도 충분히 생성
-6. 단순 페이지 제목 나열 금지 — 반드시 개념 중심으로 재구성`;
+   - 3단계(세부 항목): 필요한 경우만 (1~4개)
+3. 각 노드에 label(10자 이내)과 summary(30자 이내 한 줄 설명) 작성
+4. 단순 페이지 제목 나열 금지 — 개념 중심으로 재구성
+
+반드시 아래 JSON 형식으로만 응답하세요. JSON 외 다른 텍스트는 절대 포함하지 마세요.
+
+{
+  "title": "강의 핵심 주제",
+  "summary": "강의 전체 한 줄 요약",
+  "children": [
+    {
+      "label": "대주제1",
+      "summary": "한 줄 설명",
+      "children": [
+        {
+          "label": "중간개념",
+          "summary": "한 줄 설명",
+          "children": [
+            { "label": "세부항목", "summary": "한 줄 설명" }
+          ]
+        }
+      ]
+    }
+  ]
+}`;
+
+const mindmapTool = {
+  type: "function" as const,
+  function: {
+    name: "generate_mindmap",
+    description: "강의자료를 계층적 마인드맵 구조로 생성합니다.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "강의 핵심 주제" },
+        summary: { type: "string", description: "강의 전체 한 줄 요약" },
+        children: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string" },
+              summary: { type: "string" },
+              children: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    label: { type: "string" },
+                    summary: { type: "string" },
+                    children: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          label: { type: "string" },
+                          summary: { type: "string" },
+                        },
+                        required: ["label", "summary"],
+                      },
+                    },
+                  },
+                  required: ["label", "summary"],
+                },
+              },
+            },
+            required: ["label", "summary"],
+          },
+        },
+      },
+      required: ["title", "summary", "children"],
+    },
+  },
+};
 
 export async function GET(_req: Request, { params }: Params) {
   const { documentId } = await params;
@@ -96,14 +127,6 @@ export async function POST(req: Request, { params }: Params) {
   const body = await req.json().catch(() => ({}));
   const force: boolean = body.force ?? false;
 
-  const { data: doc } = await supabase
-    .from("documents")
-    .select("extracted_text")
-    .eq("id", documentId)
-    .single();
-
-  if (!doc) return new Response("Not found", { status: 404 });
-
   if (!force) {
     const { data: cached } = await supabase
       .from("generated_contents")
@@ -111,7 +134,28 @@ export async function POST(req: Request, { params }: Params) {
       .eq("document_id", documentId)
       .eq("content_type", "mindmap")
       .single();
-    if (cached) return Response.json(JSON.parse(cached.content_json));
+    if (cached) {
+      try { return Response.json(JSON.parse(cached.content_json)); }
+      catch { /* 재생성 */ }
+    }
+  }
+
+  // 입력 우선순위: 요약 캐시 → extracted_text
+  let contextText = await getSummaryContext(documentId, 7000);
+
+  if (!contextText) {
+    const { data: doc } = await supabase
+      .from("documents")
+      .select("extracted_text")
+      .eq("id", documentId)
+      .single();
+
+    if (!doc) return new Response("Not found", { status: 404 });
+    contextText = (doc.extracted_text ?? "").slice(0, 7000);
+  }
+
+  if (!contextText.trim()) {
+    return new Response("마인드맵 생성에 필요한 내용이 없습니다. 먼저 요약을 생성해주세요.", { status: 400 });
   }
 
   const ai = createAiClient(apiKey);
@@ -128,7 +172,7 @@ export async function POST(req: Request, { params }: Params) {
 각 노드에 label과 summary를 모두 작성해줘.
 
 강의자료:
-${(doc.extracted_text ?? "").slice(0, 7000)}`,
+${contextText}`,
         },
       ],
       tools: [mindmapTool],
