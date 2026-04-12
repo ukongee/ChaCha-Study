@@ -1,230 +1,152 @@
 "use client";
 
-import { use, useState } from "react";
-import Link from "next/link";
+import { use, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  FileText,
-  Brain,
-  HelpCircle,
-  Layers,
-  MessageCircle,
-  ArrowLeft,
-  Eye,
-  Loader2,
-} from "lucide-react";
-
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, Loader2, FileText } from "lucide-react";
+import Link from "next/link";
 import { documentsApi } from "@/lib/api/documents.api";
-import { Button } from "@/components/ui/button";
-import { format } from "@/lib/format";
 
-const STUDY_MODES = [
-  {
-    key: "summary",
-    label: "요약",
-    description: "AI가 핵심 내용을 요약해줍니다",
-    icon: Brain,
-    color: "bg-blue-50 text-blue-600",
-  },
-  {
-    key: "quiz",
-    label: "퀴즈",
-    description: "객관식 문제로 학습 내용을 확인하세요",
-    icon: HelpCircle,
-    color: "bg-green-50 text-green-600",
-  },
-  {
-    key: "flashcard",
-    label: "플래시카드",
-    description: "카드를 뒤집으며 핵심 개념을 암기하세요",
-    icon: Layers,
-    color: "bg-purple-50 text-purple-600",
-  },
-  {
-    key: "chat",
-    label: "AI 채팅",
-    description: "문서 내용에 대해 AI와 대화하세요",
-    icon: MessageCircle,
-    color: "bg-amber-50 text-amber-600",
-  },
-];
+import SummaryTab from "@/components/study/tabs/SummaryTab";
+import ExamPointsTab from "@/components/study/tabs/ExamPointsTab";
+import MindmapTab from "@/components/study/tabs/MindmapTab";
+import QuizTab from "@/components/study/tabs/QuizTab";
+import FlashcardsTab from "@/components/study/tabs/FlashcardsTab";
+import NotesTab from "@/components/study/tabs/NotesTab";
+import TutorTab from "@/components/study/tabs/TutorTab";
 
-export default function StudyDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+const TABS = [
+  { key: "summary",     label: "요약" },
+  { key: "exam-points", label: "시험 포인트" },
+  { key: "mindmap",     label: "마인드맵" },
+  { key: "quiz",        label: "퀴즈" },
+  { key: "flashcards",  label: "플래시카드" },
+  { key: "notes",       label: "메모" },
+  { key: "tutor",       label: "AI Tutor" },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+
+export default function StudyWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const documentId = Number(id);
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [fileLoading, setFileLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>("summary");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
-  const handleViewFile = async () => {
-    if (blobUrl) {
-      setBlobUrl(null);
-      return;
-    }
-    setFileLoading(true);
-    try {
-      const url = await documentsApi.getFileBlobUrl(documentId);
-      setBlobUrl(url);
-    } catch {
-      // 파일 없음
-    } finally {
-      setFileLoading(false);
-    }
-  };
-
-  const { data: documents, isLoading } = useQuery({
-    queryKey: ["documents"],
-    queryFn: documentsApi.getDocuments,
+  const { data: doc, isLoading } = useQuery({
+    queryKey: ["document", id],
+    queryFn: () => documentsApi.getDocument(id),
   });
 
-  const doc = documents?.find((d) => d.id === documentId);
+  useEffect(() => {
+    if (doc?.fileType === "PDF") {
+      setPdfLoading(true);
+      documentsApi.getFileUrl(id)
+        .then((url) => setPdfUrl(url))
+        .catch(() => {})
+        .finally(() => setPdfLoading(false));
+    }
+  }, [doc, id]);
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-24 w-full" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
+      <div className="flex items-center justify-center h-full text-[#8B96B0]">
+        <Loader2 className="w-7 h-7 animate-spin" />
       </div>
     );
   }
 
   if (!doc) {
     return (
-      <div className="text-center py-12">
-        <FileText className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-        <p className="text-muted-foreground">문서를 찾을 수 없습니다</p>
-        <Link href="/study">
-          <Button variant="outline" className="mt-3">
-            목록으로 돌아가기
-          </Button>
-        </Link>
+      <div className="flex flex-col items-center justify-center h-full gap-4">
+        <img src="/chacha.webp" alt="차차" className="w-16 h-16 object-contain opacity-40" />
+        <p className="text-[#8B96B0] text-base">문서를 찾을 수 없습니다.</p>
+        <Link href="/study" className="text-[#1A3FAA] text-base font-semibold hover:underline">목록으로</Link>
       </div>
     );
   }
 
-  const typeColor: Record<string, string> = {
-    PDF: "bg-red-50 text-red-700",
-    PPT: "bg-orange-50 text-orange-700",
-    PPTX: "bg-orange-50 text-orange-700",
-  };
-
   return (
-    <div className="space-y-6">
-      <Link
-        href="/study"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        목록으로
-      </Link>
-
-      {/* 문서 정보 */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <CardTitle className="truncate">
-                {doc.originalFileName}
-              </CardTitle>
-              <CardDescription className="mt-1">
-                {doc.pageCount}페이지 &middot;{" "}
-                {format.fileSize(doc.fileSize)} &middot;{" "}
-                {format.date(doc.createdAt)}
-              </CardDescription>
-            </div>
-            <Badge
-              variant="secondary"
-              className={typeColor[doc.fileType] ?? ""}
-            >
-              {doc.fileType}
-            </Badge>
+    <div className="flex h-screen overflow-hidden bg-[#F0F4FF]">
+      {/* ── Left: PDF Viewer ──────────────────────────────────── */}
+      <div className="w-[45%] min-w-0 flex flex-col border-r border-[#D1D9F0] bg-white">
+        {/* PDF header */}
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#D1D9F0] shrink-0 bg-white">
+          <Link href="/study" className="text-[#8B96B0] hover:text-[#1A3FAA] transition">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-semibold text-[#0F1729] truncate">{doc.originalFileName}</p>
+            <p className="text-sm text-[#8B96B0]">{doc.pageCount}페이지</p>
           </div>
-        </CardHeader>
-      </Card>
+          <span className={`text-sm px-2.5 py-0.5 rounded-md font-medium ${
+            doc.embeddingStatus === "done"
+              ? "bg-green-100 text-green-600 border border-green-200"
+              : doc.embeddingStatus === "processing"
+              ? "bg-yellow-100 text-yellow-600 border border-yellow-200"
+              : "bg-[#EEF2FF] text-[#8B96B0]"
+          }`}>
+            {doc.embeddingStatus === "done" ? "인덱싱 완료"
+              : doc.embeddingStatus === "processing" ? "인덱싱 중..."
+              : doc.embeddingStatus === "failed" ? "인덱싱 실패"
+              : "대기 중"}
+          </span>
+        </div>
 
-      {/* 학습 모드 선택 */}
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-          학습 모드 선택
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {STUDY_MODES.map((mode) => {
-            const Icon = mode.icon;
-            return (
-              <Link key={mode.key} href={`/study/${doc.id}/${mode.key}`}>
-                <Card className="hover:ring-2 hover:ring-blue-200 transition-all cursor-pointer h-full">
-                  <CardContent className="flex items-start gap-4">
-                    <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${mode.color}`}
-                    >
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">
-                        {mode.label}
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {mode.description}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
+        {/* PDF content */}
+        <div className="flex-1 overflow-hidden">
+          {doc.fileType !== "PDF" ? (
+            <div className="flex flex-col items-center justify-center h-full text-center px-6 gap-4">
+              <img src="/chacha.webp" alt="차차" className="w-20 h-20 object-contain opacity-30" />
+              <p className="text-[#5B6887] text-base">PPT/PPTX 파일은 미리보기를 지원하지 않습니다.</p>
+              <p className="text-[#8B96B0] text-sm">오른쪽 탭에서 AI 학습 기능을 이용하세요.</p>
+            </div>
+          ) : pdfLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-6 h-6 animate-spin text-[#1A3FAA]" />
+            </div>
+          ) : pdfUrl ? (
+            <iframe
+              src={pdfUrl}
+              className="w-full h-full"
+              title={doc.originalFileName}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-[#8B96B0] text-base">
+              PDF를 불러올 수 없습니다.
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 원본 파일 뷰어 */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">원본 보기</h2>
-          {doc.fileType === "PDF" && (
-            <Button variant="outline" size="sm" onClick={handleViewFile} disabled={fileLoading}>
-              {fileLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Eye className="w-4 h-4" />
-              )}
-              {blobUrl ? "닫기" : "파일 열기"}
-            </Button>
-          )}
+      {/* ── Right: Study tabs ─────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-w-0 bg-[#F0F4FF]">
+        {/* Tab bar */}
+        <div className="flex items-center gap-1 px-4 py-2.5 border-b border-[#D1D9F0] bg-white overflow-x-auto shrink-0 scrollbar-none shadow-sm">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`shrink-0 px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap ${
+                activeTab === tab.key
+                  ? "bg-[#1A3FAA] text-white shadow-sm"
+                  : "text-[#5B6887] hover:text-[#1A3FAA] hover:bg-[#EEF2FF]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {doc.fileType !== "PDF" ? (
-          <p className="text-sm text-muted-foreground">
-            PPT/PPTX 파일은 브라우저 미리보기를 지원하지 않습니다. AI 학습 기능을 이용해주세요.
-          </p>
-        ) : blobUrl ? (
-          <iframe
-            src={blobUrl}
-            className="w-full rounded-lg border"
-            style={{ height: "75vh" }}
-            title={doc.originalFileName}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            버튼을 눌러 PDF를 불러오세요.
-          </p>
-        )}
+        {/* Tab content */}
+        <div className="flex-1 overflow-y-auto">
+          {activeTab === "summary"     && <SummaryTab     documentId={id} pageCount={doc.pageCount} />}
+          {activeTab === "exam-points" && <ExamPointsTab  documentId={id} />}
+          {activeTab === "mindmap"     && <MindmapTab     documentId={id} />}
+          {activeTab === "quiz"        && <QuizTab        documentId={id} />}
+          {activeTab === "flashcards"  && <FlashcardsTab  documentId={id} />}
+          {activeTab === "notes"       && <NotesTab       documentId={id} />}
+          {activeTab === "tutor"       && <TutorTab       documentId={id} embeddingStatus={doc.embeddingStatus} />}
+        </div>
       </div>
     </div>
   );

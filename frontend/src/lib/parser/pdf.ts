@@ -1,8 +1,3 @@
-/**
- * PDF 파싱 - pdf-parse 사용
- * 페이지별 텍스트 추출
- */
-
 export interface ParseResult {
   fullText: string;
   pageTexts: string[];
@@ -10,42 +5,43 @@ export interface ParseResult {
 }
 
 export async function parsePdf(buffer: ArrayBuffer): Promise<ParseResult> {
-  // pdf-parse는 Node.js 전용 — dynamic import로 Edge 런타임 충돌 방지
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfParse = (await import("pdf-parse")) as any as (
-    buffer: Buffer,
-    options?: Record<string, unknown>
-  ) => Promise<{ numpages: number; text: string }>;
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
+  // Point to the actual worker file so pdfjs can set up its fake/real worker in Node.js
+  const { resolve } = await import("path");
+  const workerPath = resolve(
+    process.cwd(),
+    "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
+  );
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
+
+  const loadingTask = pdfjsLib.getDocument({
+    data: new Uint8Array(buffer),
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  });
+
+  const pdf = await loadingTask.promise;
+  const pageCount = pdf.numPages;
   const pageTexts: string[] = [];
 
-  const data = await pdfParse(Buffer.from(buffer), {
-    pagerender(pageData: { getTextContent: () => Promise<{ items: Array<{ str: string; hasEOL?: boolean; transform?: number[] }> }> }) {
-      return pageData.getTextContent().then(
-        (textContent: { items: Array<{ str: string; hasEOL?: boolean; transform?: number[] }> }) => {
-          let text = "";
-          let lastY: number | null = null;
+  for (let i = 1; i <= pageCount; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = (content.items as Array<{ str: string }>)
+      .map((item) => item.str)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    pageTexts.push(text);
+  }
 
-          for (const item of textContent.items) {
-            const y = item.transform?.[5] ?? null;
-
-            if (lastY !== null && y !== null && Math.abs(y - lastY) > 5) {
-              text += "\n";
-            }
-            text += item.str + (item.hasEOL ? "\n" : " ");
-            lastY = y;
-          }
-
-          pageTexts.push(text.trim());
-          return text;
-        }
-      );
-    },
-  });
+  await pdf.destroy();
 
   return {
     fullText: pageTexts.join("\n\n"),
     pageTexts,
-    pageCount: data.numpages,
+    pageCount,
   };
 }

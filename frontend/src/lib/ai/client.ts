@@ -26,3 +26,17 @@ export class ApiKeyMissingError extends Error {
     this.name = "ApiKeyMissingError";
   }
 }
+
+/** OpenAI SDK 오류를 적절한 HTTP Response로 변환 */
+export function handleAiError(e: unknown): Response {
+  if (e instanceof OpenAI.APIError) {
+    const msg =
+      e.status === 403
+        ? "API 키가 유효하지 않거나 해당 모델에 대한 접근 권한이 없습니다."
+        : e.status === 401
+        ? "API 키 인증에 실패했습니다."
+        : `AI API 오류 (${e.status}): ${e.message}`;
+    return new Response(msg, { status: e.status ?? 500 });
+  }
+  throw e;
+}

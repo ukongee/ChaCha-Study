@@ -1,5 +1,5 @@
 export interface Document {
-  id: string;                              // UUID
+  id: string;
   originalFileName: string;
   fileType: "PDF" | "PPT" | "PPTX";
   pageCount: number;
@@ -10,16 +10,44 @@ export interface Document {
 
 export type Keyword = { text: string; page: number | null } | string;
 
+export interface PageSummary {
+  page: number;
+  title: string;
+  summary: string;
+  detailedExplanation?: string;
+  easyExplanation?: string; // legacy
+  keyTerms?: string[];
+}
+
 export interface SummaryResponse {
   briefSummary: string;
-  detailedSummary: string;
-  keywords: Keyword[];
-  importantPoints: string[];
-  pageSummaries?: Array<{
-    page: number;
-    title: string;
-    summary: string;
-  }>;
+  pages: PageSummary[];
+  totalPages?: number;
+  complete?: boolean;
+}
+
+export interface ExamPoint {
+  topic: string;
+  point: string;
+  reason?: string;
+  page?: number | null;
+}
+
+export interface ConfusingConcept {
+  conceptA: string;
+  conceptB: string;
+  difference: string;
+}
+
+export interface MemorizationPoint {
+  content: string;
+  page?: number | null;
+}
+
+export interface ExamPointsResponse {
+  examPoints: ExamPoint[];
+  confusingConcepts: ConfusingConcept[];
+  memorizationPoints: MemorizationPoint[];
 }
 
 export interface QuizItem {
@@ -30,26 +58,47 @@ export interface QuizItem {
   explanation: string;
   sourcePage?: number | null;
 }
-
-export interface QuizResponse {
-  quizzes: QuizItem[];
-}
+export interface QuizResponse { quizzes: QuizItem[] }
 
 export interface FlashcardItem {
   front: string;
   back: string;
   sourcePage?: number | null;
 }
-
-export interface FlashcardResponse {
-  flashcards: FlashcardItem[];
-}
+export interface FlashcardResponse { flashcards: FlashcardItem[] }
 
 export type Difficulty = "EASY" | "MEDIUM" | "HARD";
 
-// 하위 호환 re-export (기존 import 경로 유지)
+export interface MindmapNode {
+  label: string;
+  summary?: string;
+  children?: MindmapNode[];
+}
+export interface MindmapResponse {
+  title: string;
+  summary?: string;
+  children: MindmapNode[];
+}
+
+export interface MemorizeSection {
+  title: string;
+  mustKnow: string[];
+  keywords: string[];
+  tip?: string;
+}
+export interface MemorizeResponse { sections: MemorizeSection[] }
+
+export interface ConceptItem {
+  term: string;
+  definition: string;
+  example?: string;
+  relatedTerms?: string[];
+  sourcePage?: number | null;
+}
+export interface ConceptsResponse { concepts: ConceptItem[] }
+
 export interface ChatMessage {
-  id: string;
+  id?: string;
   role: "user" | "assistant";
   content: string;
   sources?: Array<{
@@ -57,12 +106,5 @@ export interface ChatMessage {
     sectionTitle: string | null;
     excerpt: string;
   }>;
-  createdAt: string;
-}
-
-export interface TranslationResponse {
-  pages: Array<{
-    page: number;
-    text: string;
-  }>;
+  createdAt?: string;
 }

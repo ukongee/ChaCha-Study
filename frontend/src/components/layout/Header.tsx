@@ -1,44 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BookOpen, LogOut, Settings } from "lucide-react";
-import { useAuthStore } from "@/lib/stores/authStore";
-import { useApiKeyStore } from "@/lib/stores/apiKeyStore";
+import { Settings } from "lucide-react";
+import { useApiKey } from "@/hooks/useApiKey";
 
 export default function Header() {
-  const router = useRouter();
-  const { user, signOut } = useAuthStore();
-  const { isConfigured } = useApiKeyStore();
-
-  const handleLogout = () => signOut();
+  const { apiKey } = useApiKey();
 
   return (
-    <header className="md:hidden sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-      <Link href="/dashboard" className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-          <BookOpen className="w-3.5 h-3.5 text-white" />
+    <header className="md:hidden sticky top-0 z-40 bg-white border-b border-[#D1D9F0] px-4 py-3 flex items-center justify-between shadow-sm">
+      <Link href="/study" className="flex items-center gap-2.5">
+        <img
+          src="/chacha.webp"
+          alt="차차 마스코트"
+          className="w-9 h-9 object-contain"
+        />
+        <div className="flex flex-col leading-tight">
+          <span className="font-extrabold text-[#1A3FAA] text-sm tracking-tight">차차스터디</span>
+          <span className="text-[9px] text-[#5B6887]">충남대학교 AI 학습 도우미</span>
         </div>
-        <span className="font-bold text-gray-900">차차스터디</span>
       </Link>
 
-      <div className="flex items-center gap-2">
-        {!isConfigured() && (
-          <Link
-            href="/settings"
-            className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-md font-medium"
-          >
-            API 키 설정 필요
-          </Link>
+      <div className="flex items-center gap-3">
+        {!apiKey && (
+          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-md font-medium border border-amber-200">
+            API 키 없음
+          </span>
         )}
         <Link href="/settings">
-          <Settings className="w-5 h-5 text-gray-500" />
+          <Settings className="w-5 h-5 text-[#8B96B0] hover:text-[#1A3FAA] transition" />
         </Link>
-        {user && (
-          <button onClick={handleLogout}>
-            <LogOut className="w-5 h-5 text-gray-500" />
-          </button>
-        )}
       </div>
     </header>
   );

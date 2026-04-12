@@ -49,73 +49,47 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  /* 충남대 컬러 테마: 흰색 + 진한 파란색 */
+  --cnu-blue: #1A3FAA;
+  --cnu-blue-light: #2B52CC;
+  --cnu-teal: #00A8A5;
+  --cnu-bg: #F0F4FF;
+
+  --background: oklch(0.96 0.015 258);     /* 연한 파란빛 흰색 */
+  --foreground: oklch(0.13 0.05 262);      /* 진한 네이비 */
+  --card: oklch(1 0 0);                    /* 흰색 카드 */
+  --card-foreground: oklch(0.13 0.05 262);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.13 0.05 262);
+  --primary: oklch(0.38 0.18 262);         /* 충남대 파란색 */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.93 0.03 262);       /* 연한 파란 배경 */
+  --secondary-foreground: oklch(0.38 0.18 262);
+  --muted: oklch(0.93 0.03 262);
+  --muted-foreground: oklch(0.48 0.04 262);
+  --accent: oklch(0.63 0.13 192);          /* 청록색 포인트 */
+  --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: oklch(0.87 0.04 262);
+  --input: oklch(0.90 0.03 262);
+  --ring: oklch(0.38 0.18 262);
+  --chart-1: oklch(0.38 0.18 262);
+  --chart-2: oklch(0.63 0.13 192);
+  --chart-3: oklch(0.55 0.15 250);
+  --chart-4: oklch(0.45 0.14 270);
+  --chart-5: oklch(0.30 0.12 260);
+  --radius: 0.75rem;
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.13 0.05 262);
+  --sidebar-primary: oklch(0.38 0.18 262);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0.03 262);
+  --sidebar-accent-foreground: oklch(0.38 0.18 262);
+  --sidebar-border: oklch(0.87 0.04 262);
+  --sidebar-ring: oklch(0.38 0.18 262);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
+/* 다크모드 미사용 - 충남대 라이트 테마 고정 */
 
 @layer base {
   * {

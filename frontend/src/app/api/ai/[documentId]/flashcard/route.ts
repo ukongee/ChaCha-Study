@@ -1,8 +1,12 @@
 /**
- * 플래시카드 생성 API - Function Calling 사용
+ * Flashcard generation — Function Calling for structured output.
+ * Model: claude-haiku-4-5-20251001 (fast generation, sufficient for simple card format)
+ * Caches result in generated_contents table.
  */
-import { getAuthenticatedUser } from "@/lib/api/auth-helper";
-import { createAiClient, getApiKey, ApiKeyMissingError } from "@/lib/ai/client";
+import { createServiceClient } from "@/lib/supabase/service";
+import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+
+const MODEL = "claude-haiku-4-5-20251001";
 
 interface Params {
   params: Promise<{ documentId: string }>;
@@ -21,9 +25,9 @@ const generateFlashcardTool = {
           items: {
             type: "object",
             properties: {
-              front: { type: "string", description: "개념 또는 용어" },
-              back: { type: "string", description: "설명 또는 정의" },
-              sourcePage: { type: "number", description: "출처 페이지" },
+              front: { type: "string", description: "개념 또는 용어 (질문 형식 권장)" },
+              back: { type: "string", description: "명확하고 완전한 한 문장 설명" },
+              sourcePage: { type: "number" },
             },
             required: ["front", "back"],
           },
@@ -45,44 +49,72 @@ export async function POST(req: Request, { params }: Params) {
     throw e;
   }
 
-  const { user, supabase, error } = await getAuthenticatedUser();
-  if (error) return error;
-
+  const supabase = createServiceClient();
   const body = await req.json().catch(() => ({}));
-  const model: string = body.model ?? "gpt-4o-mini";
+  const force: boolean = body.force ?? false;
 
   const { data: doc } = await supabase
     .from("documents")
     .select("extracted_text")
     .eq("id", documentId)
-    .eq("user_id", user!.id)
     .single();
 
   if (!doc) return new Response("Not found", { status: 404 });
 
-  const ai = createAiClient(apiKey);
+  if (!force) {
+    const { data: cached } = await supabase
+      .from("generated_contents")
+      .select("content_json")
+      .eq("document_id", documentId)
+      .eq("content_type", "flashcards")
+      .single();
+    if (cached) return Response.json(JSON.parse(cached.content_json));
+  }
 
-  const completion = await ai.chat.completions.create({
-    model,
-    messages: [
-      {
-        role: "system",
-        content: "당신은 핵심 개념을 암기카드로 만드는 학습 도우미입니다. 강의자료에 있는 내용만 사용하세요.",
-      },
-      {
-        role: "user",
-        content: `다음 강의자료에서 핵심 개념 암기카드를 만들어줘. 출처 페이지도 표시해줘.\n\n${(doc.extracted_text ?? "").slice(0, 6000)}`,
-      },
-    ],
-    tools: [generateFlashcardTool],
-    tool_choice: { type: "function", function: { name: "generate_flashcards" } },
-    max_tokens: 4096,
-    temperature: 0.3,
-  });
+  const ai = createAiClient(apiKey);
+  let completion;
+  try {
+    completion = await ai.chat.completions.create({
+      model: MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `당신은 핵심 개념을 암기카드로 만드는 학습 도우미입니다.
+
+좋은 암기카드 기준:
+- 앞면(front): 용어명 또는 "~란 무엇인가?" 형태의 질문
+- 뒷면(back): 한 문장으로 완결된 정의. 개념의 핵심 속성 포함
+- 시험에 나올 핵심 개념, 정의, 원리, 공식만 포함
+- 중요도 순 정렬, 20개 이내
+
+금지 사항:
+- 너무 포괄적이거나 당연한 내용
+- 강의자료에 없는 내용 추가`,
+        },
+        {
+          role: "user",
+          content: `다음 강의자료에서 시험 필수 핵심 개념 암기카드를 만들어줘. 정의가 명확한 개념 위주로 중요도 순으로 정리해줘.\n\n${(doc.extracted_text ?? "").slice(0, 6000)}`,
+        },
+      ],
+      tools: [generateFlashcardTool],
+      tool_choice: { type: "function", function: { name: "generate_flashcards" } },
+      max_tokens: 4096,
+      temperature: 0.3,
+    });
+  } catch (e) {
+    return handleAiError(e);
+  }
 
   const toolCall = completion.choices[0].message.tool_calls?.[0];
-  if (!toolCall || toolCall.type !== "function") return new Response("Function call failed", { status: 500 });
+  if (!toolCall) return new Response("Function call failed", { status: 500 });
 
-  const result = JSON.parse(toolCall.function.arguments);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = JSON.parse((toolCall as any).function.arguments);
+
+  await supabase.from("generated_contents").upsert(
+    { document_id: documentId, content_type: "flashcards", content_json: JSON.stringify(result) },
+    { onConflict: "document_id,content_type" }
+  );
+
   return Response.json(result);
 }

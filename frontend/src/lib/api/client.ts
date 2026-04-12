@@ -2,28 +2,22 @@ import axios from "axios";
 
 const apiClient = axios.create({
   baseURL: "",
-  timeout: 60000,
+  timeout: 120000,
   headers: { "Content-Type": "application/json" },
 });
 
-// 요청 인터셉터: CNU AI API 키 자동 첨부 (서버에 저장 안 함)
+// Attach user's API key from localStorage on every request
 apiClient.interceptors.request.use((config) => {
-  const aiApiKey = localStorage.getItem("aiApiKey");
-  if (aiApiKey) {
-    config.headers["X-AI-Api-Key"] = aiApiKey;
+  if (typeof window !== "undefined") {
+    const key = localStorage.getItem("cnu_ai_api_key");
+    if (key) config.headers["X-AI-Api-Key"] = key;
   }
   return config;
 });
 
-// 응답 인터셉터: 401 → 로그인으로
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      window.location.href = "/login";
-    }
-    return Promise.reject(error);
-  }
+  (res) => res,
+  (err) => Promise.reject(err)
 );
 
 export default apiClient;

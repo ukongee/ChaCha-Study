@@ -1,86 +1,53 @@
 import apiClient from "./client";
-import type { ApiResponse } from "@/types/api.types";
 import type {
   SummaryResponse,
   QuizResponse,
   FlashcardResponse,
+  MindmapResponse,
+  MemorizeResponse,
+  ConceptsResponse,
   ChatMessage,
   Difficulty,
-  TranslationResponse,
 } from "@/types/study.types";
 
 export const aiApi = {
-  getSummary: async (documentId: number): Promise<SummaryResponse> => {
-    const res = await apiClient.get<ApiResponse<SummaryResponse>>(
-      `/api/ai/${documentId}/summary`
-    );
-    return res.data.data;
+  generateSummary: async (documentId: string, force = false): Promise<SummaryResponse> => {
+    const res = await apiClient.post(`/api/ai/${documentId}/summary`, { force });
+    return res.data;
   },
 
-  generateSummary: async (documentId: number, model: string): Promise<SummaryResponse> => {
-    const res = await apiClient.post<ApiResponse<SummaryResponse>>(
-      `/api/ai/${documentId}/summary`,
-      { model }
-    );
-    return res.data.data;
+  generateQuiz: async (documentId: string, difficulty: Difficulty = "MEDIUM", count = 5, force = false): Promise<QuizResponse> => {
+    const res = await apiClient.post(`/api/ai/${documentId}/quiz`, { difficulty, count, force });
+    return res.data;
   },
 
-  generateQuiz: async (
-    documentId: number,
-    difficulty: Difficulty,
-    count: number,
-    model: string
-  ): Promise<QuizResponse> => {
-    const res = await apiClient.post<ApiResponse<QuizResponse>>(
-      `/api/ai/${documentId}/quiz`,
-      { difficulty, count, model }
-    );
-    return res.data.data;
+  generateFlashcard: async (documentId: string, force = false): Promise<FlashcardResponse> => {
+    const res = await apiClient.post(`/api/ai/${documentId}/flashcard`, { force });
+    return res.data;
   },
 
-  generateFlashcard: async (
-    documentId: number,
-    count: number,
-    model: string
-  ): Promise<FlashcardResponse> => {
-    const res = await apiClient.post<ApiResponse<FlashcardResponse>>(
-      `/api/ai/${documentId}/flashcard`,
-      { count, model }
-    );
-    return res.data.data;
+  generateMindmap: async (documentId: string, force = false): Promise<MindmapResponse> => {
+    const res = await apiClient.post(`/api/ai/${documentId}/mindmap`, { force });
+    return res.data;
   },
 
-  getChatHistory: async (documentId: number): Promise<ChatMessage[]> => {
-    const res = await apiClient.get<ApiResponse<ChatMessage[]>>(
-      `/api/ai/${documentId}/chat`
-    );
-    return res.data.data;
+  generateMemorize: async (documentId: string, force = false): Promise<MemorizeResponse> => {
+    const res = await apiClient.post(`/api/ai/${documentId}/memorize`, { force });
+    return res.data;
   },
 
-  sendChat: async (
-    documentId: number,
-    question: string,
-    model: string
-  ): Promise<ChatMessage> => {
-    const res = await apiClient.post<ApiResponse<ChatMessage>>(
-      `/api/ai/${documentId}/chat`,
-      { question, model }
-    );
-    return res.data.data;
+  generateConcepts: async (documentId: string, force = false): Promise<ConceptsResponse> => {
+    const res = await apiClient.post(`/api/ai/${documentId}/concepts`, { force });
+    return res.data;
   },
 
-  getTranslation: async (documentId: number): Promise<TranslationResponse | null> => {
-    const res = await apiClient.get<ApiResponse<TranslationResponse>>(
-      `/api/ai/${documentId}/translation`
-    );
-    return res.data.data ?? null;
+  getChatHistory: async (documentId: string): Promise<ChatMessage[]> => {
+    const res = await apiClient.get(`/api/ai/${documentId}/chat`);
+    return res.data;
   },
 
-  generateTranslation: async (documentId: number, model: string): Promise<TranslationResponse> => {
-    const res = await apiClient.post<ApiResponse<TranslationResponse>>(
-      `/api/ai/${documentId}/translation`,
-      { model }
-    );
-    return res.data.data;
+  sendChat: async (documentId: string, question: string): Promise<ChatMessage> => {
+    const res = await apiClient.post(`/api/ai/${documentId}/chat`, { question });
+    return res.data;
   },
 };
