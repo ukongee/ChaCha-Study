@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import apiClient from "@/lib/api/client";
 import type { FlashcardItem } from "@/types/study.types";
 import { ChevronLeft, ChevronRight, RotateCcw, X, Check, LayoutGrid, Plus, Loader2, ScanText, BookOpen } from "lucide-react";
@@ -164,7 +164,7 @@ function FlashcardPlayer({ set, onBack }: { set: FlashcardSetDetail; onBack: () 
 }
 
 // ── Main FlashcardsTab ─────────────────────────────────────────────────────
-export default function FlashcardsTab({ documentId }: { documentId: string }) {
+export default function FlashcardsTab({ documentId, autoGenerate }: { documentId: string; autoGenerate?: boolean }) {
   const [sets, setSets] = useState<FlashcardSetMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -174,6 +174,7 @@ export default function FlashcardsTab({ documentId }: { documentId: string }) {
   const [rangeTo, setRangeTo] = useState("");
   const [activeSet, setActiveSet] = useState<FlashcardSetDetail | null>(null);
   const [loadingSet, setLoadingSet] = useState(false);
+  const autoTriggered = useRef(false);
 
   const fetchSets = useCallback(async () => {
     try {
@@ -184,6 +185,14 @@ export default function FlashcardsTab({ documentId }: { documentId: string }) {
   }, [documentId]);
 
   useEffect(() => { fetchSets(); }, [fetchSets]);
+
+  useEffect(() => {
+    if (!loading && sets.length === 0 && autoGenerate && !creating && !autoTriggered.current) {
+      autoTriggered.current = true;
+      createSet();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, autoGenerate]);
 
   async function createSet() {
     setCreating(true);

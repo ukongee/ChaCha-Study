@@ -215,10 +215,11 @@ function MindmapCanvas({ data }: { data: MindmapResponse }) {
 }
 
 // ── Main tab ───────────────────────────────────────────────────────────────
-export default function MindmapTab({ documentId }: { documentId: string }) {
+export default function MindmapTab({ documentId, autoGenerate }: { documentId: string; autoGenerate?: boolean }) {
   const [data, setData] = useState<MindmapResponse | null>(null);
   const [generating, setGenerating] = useState(false);
   const [checked, setChecked] = useState(false);
+  const autoTriggered = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -230,6 +231,14 @@ export default function MindmapTab({ documentId }: { documentId: string }) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (checked && !data && !generating && autoGenerate && !autoTriggered.current) {
+      autoTriggered.current = true;
+      generate(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checked, autoGenerate]);
 
   async function generate(force = false) {
     setGenerating(true);
