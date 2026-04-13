@@ -1,12 +1,10 @@
 /**
- * Mindmap generation — direct JSON parsing (function calling 미사용)
+ * Mindmap generation — function calling으로 JSON 구조 보장.
  * Model: claude-sonnet-4-6
- * 입력 우선순위: 저장된 요약 → extracted_text
  * Caches result in generated_contents table.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
-import { getSummaryContext, NO_LATEX_RULE } from "@/lib/ai/context";
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -14,8 +12,48 @@ interface Params {
   params: Promise<{ documentId: string }>;
 }
 
+// Recursive schema helper
+function nodeSchema(depth: number): object {
+  const base: Record<string, object> = {
+    label: { type: "string", description: "노드 라벨 (15자 이내 핵심 키워드)" },
+    summary: { type: "string", description: "이 개념의 한 줄 설명 (50자 이내)" },
+  };
+  if (depth > 0) {
+    base.children = {
+      type: "array",
+      description: `하위 개념 (${depth === 3 ? "2~6" : "1~4"}개)`,
+      items: { type: "object", properties: nodeSchema(depth - 1), required: ["label"] },
+    };
+  }
+  return base;
+}
+
+const mindmapTool = {
+  type: "function" as const,
+  function: {
+    name: "generate_mindmap",
+    description: "강의자료의 개념 계층 구조 마인드맵을 생성합니다.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "강의 전체 핵심 주제 (15자 이내)" },
+        summary: { type: "string", description: "강의 전체 한 줄 요약 (50자 이내)" },
+        children: {
+          type: "array",
+          description: "대주제 노드 (4~8개)",
+          items: {
+            type: "object",
+            properties: nodeSchema(3),
+            required: ["label"],
+          },
+        },
+      },
+      required: ["title", "children"],
+    },
+  },
+};
+
 const SYSTEM_PROMPT = `당신은 강의자료를 NotebookLM 수준의 풍부한 마인드맵으로 구조화하는 전문가입니다.
-${NO_LATEX_RULE}
 
 [핵심 원칙]
 1. 페이지 순서 나열 금지 — 개념 중심으로 재구성
@@ -37,29 +75,7 @@ ${NO_LATEX_RULE}
 [금지 사항]
 • "1페이지", "2장" 등 페이지·챕터 번호 사용 금지
 • 단순 키워드 나열 금지 — 의미 있는 개념 단위로
-• 2단계 진행 없이 leaf만 있는 대주제 금지
-
-반드시 순수 JSON만 응답하세요. 다른 텍스트·마크다운 절대 금지.
-
-{
-  "title": "강의 핵심 주제",
-  "summary": "강의 전체 한 줄 요약",
-  "children": [
-    {
-      "label": "대주제",
-      "summary": "한 줄 설명",
-      "children": [
-        {
-          "label": "중간 개념",
-          "summary": "한 줄 설명",
-          "children": [
-            { "label": "세부 항목", "summary": "한 줄 설명" }
-          ]
-        }
-      ]
-    }
-  ]
-}`;
+• 2단계 진행 없이 leaf만 있는 대주제 금지`;
 
 export async function GET(_req: Request, { params }: Params) {
   const { documentId } = await params;
@@ -90,6 +106,14 @@ export async function POST(req: Request, { params }: Params) {
   const body = await req.json().catch(() => ({}));
   const force: boolean = body.force ?? false;
 
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("extracted_text")
+    .eq("id", documentId)
+    .single();
+
+  if (!doc) return new Response("Not found", { status: 404 });
+
   if (!force) {
     const { data: cached } = await supabase
       .from("generated_contents")
@@ -103,24 +127,6 @@ export async function POST(req: Request, { params }: Params) {
     }
   }
 
-  // 입력 우선순위: 요약 캐시 → extracted_text
-  let contextText = await getSummaryContext(documentId, 10000);
-
-  if (!contextText) {
-    const { data: doc } = await supabase
-      .from("documents")
-      .select("extracted_text")
-      .eq("id", documentId)
-      .single();
-
-    if (!doc) return new Response("Not found", { status: 404 });
-    contextText = (doc.extracted_text ?? "").slice(0, 10000);
-  }
-
-  if (!contextText.trim()) {
-    return new Response("마인드맵 생성에 필요한 내용이 없습니다. 먼저 요약을 생성해주세요.", { status: 400 });
-  }
-
   const ai = createAiClient(apiKey);
   let completion;
   try {
@@ -131,19 +137,16 @@ export async function POST(req: Request, { params }: Params) {
         {
           role: "user",
           content: `다음 강의자료를 개념 중심의 계층적 마인드맵으로 구조화해줘.
-
-요구사항:
-- 페이지 순서가 아니라 개념 간 관계와 논리적 흐름 중심으로
-- 대주제 4~8개, 각 대주제 아래 중간 개념 2~6개 반드시 생성
-- 정의·종류·조건·관계·변형·응용 등 자연스러운 축으로 묶기
-- 3~4단계 깊이까지 허용, 중간 레벨 노드 풍부하게
-- 모든 노드에 label(15자 이내)과 summary(50자 이내) 작성
-- 순수 JSON만 반환, 다른 텍스트 절대 포함 금지
+페이지 순서가 아니라 개념 간 관계와 논리적 흐름이 잘 드러나도록 해줘.
+대주제 4~8개, 각 대주제 아래 중간 개념 2~6개 반드시 생성해줘.
+각 노드에 label과 summary를 모두 작성해줘.
 
 강의자료:
-${contextText}`,
+${(doc.extracted_text ?? "").slice(0, 10000)}`,
         },
       ],
+      tools: [mindmapTool],
+      tool_choice: { type: "function", function: { name: "generate_mindmap" } },
       max_tokens: 4500,
       temperature: 0.3,
     });
@@ -151,17 +154,11 @@ ${contextText}`,
     return handleAiError(e);
   }
 
-  const raw = completion.choices[0].message.content ?? "{}";
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  const jsonStr = jsonMatch ? jsonMatch[0] : raw;
+  const toolCall = completion.choices[0].message.tool_calls?.[0];
+  if (!toolCall) return new Response("Function call failed", { status: 500 });
 
-  let result: unknown;
-  try {
-    result = JSON.parse(jsonStr);
-  } catch {
-    console.error("[mindmap] JSON parse failed, raw length:", raw.length);
-    return new Response("AI 응답 처리에 실패했습니다. 다시 시도해주세요.", { status: 500 });
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = JSON.parse((toolCall as any).function.arguments);
 
   await supabase.from("generated_contents").upsert(
     { document_id: documentId, content_type: "mindmap", content_json: JSON.stringify(result) },
