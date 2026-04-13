@@ -10,6 +10,7 @@ export default function ExamPointsTab({ documentId }: { documentId: string }) {
   const [data, setData] = useState<ExamPointsResponse | null>(null);
   const [generating, setGenerating] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -22,15 +23,17 @@ export default function ExamPointsTab({ documentId }: { documentId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-  }, [checked]);
-
   async function generate(force = false) {
     setGenerating(true);
+    setError(null);
     try {
       const res = await apiClient.post(`/api/ai/${documentId}/exam-points`, { force });
       setData(res.data);
-    } catch {
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: string } })?.response?.data ||
+        "시험 포인트 생성에 실패했습니다. 다시 시도해주세요.";
+      setError(typeof msg === "string" ? msg : "시험 포인트 생성에 실패했습니다.");
     } finally {
       setGenerating(false);
     }
@@ -67,6 +70,7 @@ export default function ExamPointsTab({ documentId }: { documentId: string }) {
       onRegenerate={() => generate(true)}
       showCopy
       copyText={copyText}
+      emptyLabel={error ?? "아직 생성된 내용이 없습니다."}
     >
       {data && (
         <div className="space-y-5 pb-6">
