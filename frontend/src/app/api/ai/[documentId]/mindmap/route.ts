@@ -14,34 +14,46 @@ interface Params {
   params: Promise<{ documentId: string }>;
 }
 
-const SYSTEM_PROMPT = `당신은 강의자료를 풍부한 마인드맵으로 구조화하는 전문가입니다.
+const SYSTEM_PROMPT = `당신은 강의자료를 NotebookLM 수준의 풍부한 마인드맵으로 구조화하는 전문가입니다.
 ${NO_LATEX_RULE}
 
-[마인드맵 생성 원칙]
-1. 페이지 순서가 아니라 개념 중심으로 묶기 — 비슷한 개념은 한 그룹으로
-2. 계층 구조:
-   - root: 강의 전체 핵심 주제 (1개)
-   - 1단계(대주제): 강의의 주요 개념 축 (4~8개)
-   - 2단계(중간 개념): 각 대주제의 세부 개념 (2~6개)
-   - 3단계(세부 항목): 필요한 경우만 (1~4개)
-3. 각 노드에 label(10자 이내)과 summary(30자 이내 한 줄 설명) 작성
-4. 단순 페이지 제목 나열 금지 — 개념 중심으로 재구성
+[핵심 원칙]
+1. 페이지 순서 나열 금지 — 개념 중심으로 재구성
+2. 비슷한 개념은 반드시 한 그룹으로 묶기
+3. 정의·종류·관계·변형·응용 등 자연스러운 축으로 분류
+4. 단편적인 leaf 노드 남발 금지 — 중간 레벨 노드를 충분히 생성
 
-반드시 아래 JSON 형식으로만 응답하세요. JSON 외 다른 텍스트는 절대 포함하지 마세요.
+[계층 구조 — 반드시 준수]
+• root(0단계): 강의 전체 핵심 주제 (1개)
+• 1단계(대주제): 강의의 주요 개념 축 4~8개
+• 2단계(중간 개념): 각 대주제당 반드시 2~6개 생성 — 생략 불가
+• 3단계(세부 항목): 중요한 개념은 1~4개 — 권장
+• 4단계(심화): 꼭 필요한 경우만 1~3개
+
+[노드 작성 규칙]
+• label: 핵심 개념어, 15자 이내
+• summary: 개념 한 줄 설명, 50자 이내 — 모든 노드에 필수
+
+[금지 사항]
+• "1페이지", "2장" 등 페이지·챕터 번호 사용 금지
+• 단순 키워드 나열 금지 — 의미 있는 개념 단위로
+• 2단계 진행 없이 leaf만 있는 대주제 금지
+
+반드시 순수 JSON만 응답하세요. 다른 텍스트·마크다운 절대 금지.
 
 {
   "title": "강의 핵심 주제",
   "summary": "강의 전체 한 줄 요약",
   "children": [
     {
-      "label": "대주제1",
+      "label": "대주제",
       "summary": "한 줄 설명",
       "children": [
         {
-          "label": "중간개념",
+          "label": "중간 개념",
           "summary": "한 줄 설명",
           "children": [
-            { "label": "세부항목", "summary": "한 줄 설명" }
+            { "label": "세부 항목", "summary": "한 줄 설명" }
           ]
         }
       ]
@@ -92,7 +104,7 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   // 입력 우선순위: 요약 캐시 → extracted_text
-  let contextText = await getSummaryContext(documentId, 7000);
+  let contextText = await getSummaryContext(documentId, 10000);
 
   if (!contextText) {
     const { data: doc } = await supabase
@@ -102,7 +114,7 @@ export async function POST(req: Request, { params }: Params) {
       .single();
 
     if (!doc) return new Response("Not found", { status: 404 });
-    contextText = (doc.extracted_text ?? "").slice(0, 7000);
+    contextText = (doc.extracted_text ?? "").slice(0, 10000);
   }
 
   if (!contextText.trim()) {
@@ -119,15 +131,20 @@ export async function POST(req: Request, { params }: Params) {
         {
           role: "user",
           content: `다음 강의자료를 개념 중심의 계층적 마인드맵으로 구조화해줘.
-페이지 순서가 아니라 개념 간 관계와 논리적 흐름이 잘 드러나도록 해줘.
-각 노드에 label과 summary를 모두 작성해줘.
-반드시 JSON만 반환하고 다른 텍스트는 포함하지 마세요.
+
+요구사항:
+- 페이지 순서가 아니라 개념 간 관계와 논리적 흐름 중심으로
+- 대주제 4~8개, 각 대주제 아래 중간 개념 2~6개 반드시 생성
+- 정의·종류·조건·관계·변형·응용 등 자연스러운 축으로 묶기
+- 3~4단계 깊이까지 허용, 중간 레벨 노드 풍부하게
+- 모든 노드에 label(15자 이내)과 summary(50자 이내) 작성
+- 순수 JSON만 반환, 다른 텍스트 절대 포함 금지
 
 강의자료:
 ${contextText}`,
         },
       ],
-      max_tokens: 3000,
+      max_tokens: 4500,
       temperature: 0.3,
     });
   } catch (e) {

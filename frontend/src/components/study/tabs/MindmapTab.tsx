@@ -6,7 +6,7 @@ import TabShell from "@/components/study/TabShell";
 import type { MindmapResponse, MindmapNode } from "@/types/study.types";
 import { Loader2, Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 
-// ── Depth styles (light theme) ─────────────────────────────────────────────
+// ── Depth styles ───────────────────────────────────────────────────────────
 const DEPTH_STYLES = [
   {
     node: "bg-[#1A3FAA] border-[#1A3FAA] text-white font-bold text-sm px-4 py-2 shadow-lg shadow-blue-200 cursor-default",
@@ -30,13 +30,18 @@ const DEPTH_STYLES = [
   },
 ];
 
+// Node max-widths by depth
+const NODE_MAX_WIDTH = [220, 210, 200, 180];
+
 // ── Node component ─────────────────────────────────────────────────────────
 function MindmapNodeView({ node, depth = 0 }: { node: MindmapNode; depth?: number }) {
   const [expanded, setExpanded] = useState(depth < 2);
   const [showTooltip, setShowTooltip] = useState(false);
   const hasChildren = (node.children?.length ?? 0) > 0;
+  const childCount = node.children?.length ?? 0;
   const isRoot = depth === 0;
   const s = DEPTH_STYLES[Math.min(depth, DEPTH_STYLES.length - 1)];
+  const maxW = NODE_MAX_WIDTH[Math.min(depth, NODE_MAX_WIDTH.length - 1)];
 
   return (
     <div className="flex items-center">
@@ -44,17 +49,18 @@ function MindmapNodeView({ node, depth = 0 }: { node: MindmapNode; depth?: numbe
       <div className="flex items-center gap-1 shrink-0">
         <div className="relative">
           <div
-            className={`rounded-xl border whitespace-nowrap select-none ${s.node}`}
-            style={{ maxWidth: 180 }}
+            className={`rounded-xl border select-none ${s.node}`}
+            style={{ maxWidth: maxW }}
             onMouseEnter={() => node.summary && setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
+            title={node.label}
           >
-            <span className="block truncate">{node.label}</span>
+            <span className="block leading-snug break-keep">{node.label}</span>
           </div>
 
           {/* Tooltip */}
           {showTooltip && node.summary && (
-            <div className="absolute left-0 top-full mt-1.5 z-50 w-52 bg-white border border-[#D1D9F0] rounded-xl p-3 shadow-xl text-xs text-[#3B4A6B] leading-relaxed pointer-events-none">
+            <div className="absolute left-0 top-full mt-1.5 z-50 w-56 bg-white border border-[#D1D9F0] rounded-xl p-3 shadow-xl text-xs text-[#3B4A6B] leading-relaxed pointer-events-none">
               <div className="absolute -top-1.5 left-4 w-3 h-3 bg-white border-l border-t border-[#D1D9F0] rotate-45" />
               {node.summary}
             </div>
@@ -65,9 +71,9 @@ function MindmapNodeView({ node, depth = 0 }: { node: MindmapNode; depth?: numbe
         {hasChildren && !isRoot && (
           <button
             onClick={() => setExpanded((e) => !e)}
-            className={`w-5 h-5 rounded-md border text-[10px] flex items-center justify-center transition shrink-0 font-bold ${s.expand}`}
+            className={`min-w-[20px] h-5 rounded-md border text-[10px] flex items-center justify-center transition shrink-0 font-bold px-1 ${s.expand}`}
           >
-            {expanded ? "−" : "+"}
+            {expanded ? "−" : `+${childCount}`}
           </button>
         )}
       </div>
@@ -77,7 +83,7 @@ function MindmapNodeView({ node, depth = 0 }: { node: MindmapNode; depth?: numbe
         <div className="flex flex-col gap-2.5 relative pl-8 ml-1">
           {/* Vertical spine */}
           <div
-            className={`absolute w-px top-[16px] bottom-[16px] ${s.line}`}
+            className={`absolute w-px top-[14px] bottom-[14px] ${s.line}`}
             style={{ left: "0px" }}
           />
           {node.children!.map((child, i) => (
@@ -96,9 +102,13 @@ function MindmapNodeView({ node, depth = 0 }: { node: MindmapNode; depth?: numbe
 // ── Interactive canvas ─────────────────────────────────────────────────────
 function MindmapCanvas({ data }: { data: MindmapResponse }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState({ x: 40, y: 40, scale: 1 });
-  const [isPanning, setIsPanning] = useState(false);
+  const isPanningRef = useRef(false);
   const panStart = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
+  // Keep latest transform in ref so event handlers don't go stale
+  const transformRef = useRef(transform);
+  useEffect(() => { transformRef.current = transform; }, [transform]);
 
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
@@ -107,7 +117,7 @@ function MindmapCanvas({ data }: { data: MindmapResponse }) {
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     setTransform((t) => {
-      const newScale = Math.min(3, Math.max(0.2, t.scale * factor));
+      const newScale = Math.min(3, Math.max(0.15, t.scale * factor));
       const ratio = newScale / t.scale;
       return {
         x: mx - ratio * (mx - t.x),
@@ -124,30 +134,58 @@ function MindmapCanvas({ data }: { data: MindmapResponse }) {
     return () => el.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
 
-  const onMouseDown = (e: React.MouseEvent) => {
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
-    setIsPanning(true);
-    panStart.current = { x: e.clientX, y: e.clientY, ox: transform.x, oy: transform.y };
-  };
+    isPanningRef.current = true;
+    const t = transformRef.current;
+    panStart.current = { x: e.clientX, y: e.clientY, ox: t.x, oy: t.y };
+  }, []);
 
-  const onMouseMove = (e: React.MouseEvent) => {
-    if (!isPanning) return;
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanningRef.current) return;
     const dx = e.clientX - panStart.current.x;
     const dy = e.clientY - panStart.current.y;
     setTransform((t) => ({ ...t, x: panStart.current.ox + dx, y: panStart.current.oy + dy }));
-  };
+  }, []);
 
-  const onMouseUp = () => setIsPanning(false);
+  const onMouseUp = useCallback(() => { isPanningRef.current = false; }, []);
 
-  const fitToScreen = () => setTransform({ x: 40, y: 40, scale: 1 });
-  const zoomIn = () => setTransform((t) => ({ ...t, scale: Math.min(3, +(t.scale * 1.2).toFixed(2)) }));
-  const zoomOut = () => setTransform((t) => ({ ...t, scale: Math.max(0.2, +(t.scale * 0.8).toFixed(2)) }));
+  const fitToScreen = useCallback(() => {
+    if (!containerRef.current || !contentRef.current) {
+      setTransform({ x: 40, y: 40, scale: 1 });
+      return;
+    }
+    const container = containerRef.current.getBoundingClientRect();
+    // Measure natural content size at scale=1
+    const t = transformRef.current;
+    const naturalW = contentRef.current.offsetWidth / t.scale;
+    const naturalH = contentRef.current.offsetHeight / t.scale;
+    const padding = 60;
+    const scaleX = (container.width - padding * 2) / naturalW;
+    const scaleY = (container.height - padding * 2) / naturalH;
+    const newScale = Math.min(1, scaleX, scaleY);
+    const x = (container.width - naturalW * newScale) / 2;
+    const y = (container.height - naturalH * newScale) / 2;
+    setTransform({ x: Math.max(padding, x), y: Math.max(padding, y), scale: newScale });
+  }, []);
+
+  const zoomIn = useCallback(() =>
+    setTransform((t) => ({ ...t, scale: Math.min(3, +(t.scale * 1.2).toFixed(2)) })), []);
+  const zoomOut = useCallback(() =>
+    setTransform((t) => ({ ...t, scale: Math.max(0.15, +(t.scale * 0.8).toFixed(2)) })), []);
+
+  // Auto-fit on first render
+  useEffect(() => {
+    const timer = setTimeout(fitToScreen, 100);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="relative flex-1 overflow-hidden bg-[#F8FAFF]" style={{ minHeight: 0 }}>
       {/* Grid background */}
       <div
-        className="absolute inset-0 opacity-40"
+        className="absolute inset-0 opacity-40 pointer-events-none"
         style={{
           backgroundImage: `radial-gradient(circle, #A8B8E8 1px, transparent 1px)`,
           backgroundSize: "28px 28px",
@@ -158,7 +196,7 @@ function MindmapCanvas({ data }: { data: MindmapResponse }) {
       {/* Canvas */}
       <div
         ref={containerRef}
-        className={`absolute inset-0 ${isPanning ? "cursor-grabbing" : "cursor-grab"}`}
+        className={`absolute inset-0 ${isPanningRef.current ? "cursor-grabbing" : "cursor-grab"}`}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
@@ -166,11 +204,12 @@ function MindmapCanvas({ data }: { data: MindmapResponse }) {
         onDoubleClick={fitToScreen}
       >
         <div
+          ref={contentRef}
           style={{
             transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
             transformOrigin: "0 0",
             display: "inline-block",
-            padding: "20px 60px 60px 20px",
+            padding: "20px 80px 80px 20px",
           }}
         >
           <MindmapNodeView
@@ -210,6 +249,10 @@ function MindmapCanvas({ data }: { data: MindmapResponse }) {
         {Math.round(transform.scale * 100)}%
       </div>
 
+      {/* Hint */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-white/70 border border-[#D1D9F0] rounded-full px-3 py-1 text-[11px] text-[#8B96B0] backdrop-blur-sm pointer-events-none select-none">
+        드래그로 이동 · 휠로 확대/축소 · 더블클릭으로 맞추기
+      </div>
     </div>
   );
 }
@@ -231,9 +274,6 @@ export default function MindmapTab({ documentId }: { documentId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-  }, [checked]);
-
   async function generate(force = false) {
     setGenerating(true);
     try {
@@ -253,7 +293,6 @@ export default function MindmapTab({ documentId }: { documentId: string }) {
     );
   }
 
-  // Use TabShell only for empty/loading state; once we have data, render full canvas
   if (!data && !generating) {
     return (
       <TabShell
@@ -300,7 +339,6 @@ export default function MindmapTab({ documentId }: { documentId: string }) {
         </div>
       </div>
 
-      {/* Interactive canvas fills remaining space */}
       {data && <MindmapCanvas data={data} />}
     </div>
   );
