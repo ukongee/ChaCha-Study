@@ -140,14 +140,14 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
         </div>
 
         {/* Tab content — always mounted to preserve state */}
-        <div className="flex-1 overflow-y-auto relative">
-          <div className={activeTab === "summary"     ? "" : "hidden"}><SummaryTab     documentId={id} pageCount={doc.pageCount} /></div>
-          <div className={activeTab === "exam-points" ? "" : "hidden"}><ExamPointsTab  documentId={id} /></div>
-          <div className={activeTab === "mindmap"     ? "" : "hidden"}><MindmapTab     documentId={id} /></div>
-          <div className={activeTab === "quiz"        ? "" : "hidden"}><QuizTab        documentId={id} /></div>
-          <div className={activeTab === "flashcards"  ? "" : "hidden"}><FlashcardsTab  documentId={id} /></div>
-          <div className={activeTab === "notes"       ? "" : "hidden"}><NotesTab       documentId={id} /></div>
-          <div className={activeTab === "tutor"       ? "" : "hidden"}><TutorTab       documentId={id} /></div>
+        <div className="flex-1 overflow-hidden relative">
+          <div className={`h-full overflow-y-auto ${activeTab === "summary"     ? "" : "hidden"}`}><SummaryTab     documentId={id} pageCount={doc.pageCount} /></div>
+          <div className={`h-full overflow-y-auto ${activeTab === "exam-points" ? "" : "hidden"}`}><ExamPointsTab  documentId={id} /></div>
+          <div className={`h-full overflow-hidden ${activeTab === "mindmap"     ? "" : "hidden"}`}><MindmapTab     documentId={id} /></div>
+          <div className={`h-full overflow-y-auto ${activeTab === "quiz"        ? "" : "hidden"}`}><QuizTab        documentId={id} /></div>
+          <div className={`h-full overflow-y-auto ${activeTab === "flashcards"  ? "" : "hidden"}`}><FlashcardsTab  documentId={id} /></div>
+          <div className={`h-full overflow-y-auto ${activeTab === "notes"       ? "" : "hidden"}`}><NotesTab       documentId={id} /></div>
+          <div className={`h-full overflow-hidden ${activeTab === "tutor"       ? "" : "hidden"}`}><TutorTab       documentId={id} /></div>
         </div>
       </div>
     </div>
