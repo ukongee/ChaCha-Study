@@ -1,4 +1,9 @@
+import { createHash } from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
+
+function hashApiKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
+}
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -18,17 +23,24 @@ export async function GET(_req: Request, { params }: Params) {
   return Response.json(data);
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(req: Request, { params }: Params) {
+  const apiKey = req.headers.get("x-ai-api-key");
+  if (!apiKey) return new Response("API 키가 필요합니다.", { status: 401 });
+
   const { id } = await params;
   const supabase = createServiceClient();
+  const keyHash = hashApiKey(apiKey);
 
   const { data: doc } = await supabase
     .from("documents")
-    .select("file_path")
+    .select("file_path, api_key_hash")
     .eq("id", id)
     .single();
 
-  if (doc?.file_path) {
+  if (!doc) return new Response("Not found", { status: 404 });
+  if (doc.api_key_hash !== keyHash) return new Response("Forbidden", { status: 403 });
+
+  if (doc.file_path) {
     await supabase.storage.from("documents").remove([doc.file_path]);
   }
 

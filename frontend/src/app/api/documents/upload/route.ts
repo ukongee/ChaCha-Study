@@ -4,9 +4,14 @@
  * 2. Save to Supabase Storage
  * 3. Insert document record
  */
+import { createHash } from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
 import { parsePdf } from "@/lib/parser/pdf";
 import { parsePptx, parsePpt } from "@/lib/parser/pptx";
+
+function hashApiKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
+}
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -19,7 +24,11 @@ function getFileType(filename: string, mime: string): "PDF" | "PPT" | "PPTX" | n
 }
 
 export async function POST(req: Request) {
+  const apiKey = req.headers.get("x-ai-api-key");
+  if (!apiKey) return new Response("API 키가 필요합니다.", { status: 401 });
+
   const supabase = createServiceClient();
+  const keyHash = hashApiKey(apiKey);
 
   let formData: FormData;
   try {
@@ -82,6 +91,7 @@ export async function POST(req: Request) {
       page_count: parseResult.pageCount,
       file_size: file.size,
       embedding_status: "pending",
+      api_key_hash: keyHash,
     })
     .select("id, original_file_name, file_type, page_count, file_size, embedding_status, created_at")
     .single();
