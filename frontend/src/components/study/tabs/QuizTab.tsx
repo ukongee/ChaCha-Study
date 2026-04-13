@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import apiClient from "@/lib/api/client";
 import type { QuizItem, Difficulty } from "@/types/study.types";
 import { ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, RotateCcw, Plus, Loader2 } from "lucide-react";
@@ -164,7 +164,7 @@ function QuizPlayer({ set, onBack }: { set: QuizSetDetail; onBack: () => void })
 }
 
 // ── Main QuizTab ───────────────────────────────────────────────────────────
-export default function QuizTab({ documentId, autoGenerate }: { documentId: string; autoGenerate?: boolean }) {
+export default function QuizTab({ documentId }: { documentId: string }) {
   const [sets, setSets] = useState<QuizSetMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -173,7 +173,6 @@ export default function QuizTab({ documentId, autoGenerate }: { documentId: stri
   const [difficulty, setDifficulty] = useState<Difficulty>("MEDIUM");
   const [activeSet, setActiveSet] = useState<QuizSetDetail | null>(null);
   const [loadingSet, setLoadingSet] = useState(false);
-  const autoTriggered = useRef(false);
 
   const fetchSets = useCallback(async () => {
     try {
@@ -185,13 +184,6 @@ export default function QuizTab({ documentId, autoGenerate }: { documentId: stri
 
   useEffect(() => { fetchSets(); }, [fetchSets]);
 
-  useEffect(() => {
-    if (!loading && sets.length === 0 && autoGenerate && !creating && !autoTriggered.current) {
-      autoTriggered.current = true;
-      createSet();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, autoGenerate]);
 
   async function createSet() {
     setCreating(true);

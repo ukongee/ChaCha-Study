@@ -9,15 +9,13 @@ import { ChevronDown, Copy, Check, RefreshCw } from "lucide-react";
 interface Props {
   documentId: string;
   pageCount: number;
-  autoGenerate?: boolean;
 }
 
-export default function SummaryTab({ documentId, pageCount, autoGenerate }: Props) {
+export default function SummaryTab({ documentId, pageCount }: Props) {
   const [data, setData] = useState<SummaryResponse | null>(null);
   const [generating, setGenerating] = useState(false);
   const [checked, setChecked] = useState(false);
   const [copied, setCopied] = useState(false);
-  const autoTriggered = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -30,13 +28,6 @@ export default function SummaryTab({ documentId, pageCount, autoGenerate }: Prop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (checked && !data && !generating && autoGenerate && !autoTriggered.current) {
-      autoTriggered.current = true;
-      generate(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checked, autoGenerate]);
 
   async function generate(force = false) {
     setGenerating(true);

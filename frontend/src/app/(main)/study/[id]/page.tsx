@@ -29,7 +29,6 @@ type TabKey = (typeof TABS)[number]["key"];
 export default function StudyWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
-  const [autoGenerate, setAutoGenerate] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfFetchError, setPdfFetchError] = useState(false);
 
@@ -138,24 +137,15 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
               {tab.label}
             </button>
           ))}
-          <div className="ml-auto shrink-0 pl-2">
-            <button
-              onClick={() => setAutoGenerate(true)}
-              disabled={autoGenerate}
-              className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-[#EEF2FF] text-[#1A3FAA] hover:bg-[#D1D9F0] disabled:opacity-40 transition whitespace-nowrap border border-[#A8B8E8]"
-            >
-              {autoGenerate ? "생성 중..." : "전체 생성"}
-            </button>
-          </div>
         </div>
 
         {/* Tab content — always mounted to preserve state */}
         <div className="flex-1 overflow-y-auto relative">
-          <div className={activeTab === "summary"     ? "" : "hidden"}><SummaryTab     documentId={id} pageCount={doc.pageCount} autoGenerate={autoGenerate} /></div>
-          <div className={activeTab === "exam-points" ? "" : "hidden"}><ExamPointsTab  documentId={id} autoGenerate={autoGenerate} /></div>
-          <div className={activeTab === "mindmap"     ? "" : "hidden"}><MindmapTab     documentId={id} autoGenerate={autoGenerate} /></div>
-          <div className={activeTab === "quiz"        ? "" : "hidden"}><QuizTab        documentId={id} autoGenerate={autoGenerate} /></div>
-          <div className={activeTab === "flashcards"  ? "" : "hidden"}><FlashcardsTab  documentId={id} autoGenerate={autoGenerate} /></div>
+          <div className={activeTab === "summary"     ? "" : "hidden"}><SummaryTab     documentId={id} pageCount={doc.pageCount} /></div>
+          <div className={activeTab === "exam-points" ? "" : "hidden"}><ExamPointsTab  documentId={id} /></div>
+          <div className={activeTab === "mindmap"     ? "" : "hidden"}><MindmapTab     documentId={id} /></div>
+          <div className={activeTab === "quiz"        ? "" : "hidden"}><QuizTab        documentId={id} /></div>
+          <div className={activeTab === "flashcards"  ? "" : "hidden"}><FlashcardsTab  documentId={id} /></div>
           <div className={activeTab === "notes"       ? "" : "hidden"}><NotesTab       documentId={id} /></div>
           <div className={activeTab === "tutor"       ? "" : "hidden"}><TutorTab       documentId={id} /></div>
         </div>

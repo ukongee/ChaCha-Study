@@ -1,5 +1,5 @@
 /**
- * Mindmap generation — rich concept-hierarchy tree.
+ * Mindmap generation — direct JSON parsing (function calling 미사용)
  * Model: claude-sonnet-4-6
  * 입력 우선순위: 저장된 요약 → extracted_text
  * Caches result in generated_contents table.
@@ -48,55 +48,6 @@ ${NO_LATEX_RULE}
     }
   ]
 }`;
-
-const mindmapTool = {
-  type: "function" as const,
-  function: {
-    name: "generate_mindmap",
-    description: "강의자료를 계층적 마인드맵 구조로 생성합니다.",
-    parameters: {
-      type: "object",
-      properties: {
-        title: { type: "string", description: "강의 핵심 주제" },
-        summary: { type: "string", description: "강의 전체 한 줄 요약" },
-        children: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              label: { type: "string" },
-              summary: { type: "string" },
-              children: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    label: { type: "string" },
-                    summary: { type: "string" },
-                    children: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          label: { type: "string" },
-                          summary: { type: "string" },
-                        },
-                        required: ["label", "summary"],
-                      },
-                    },
-                  },
-                  required: ["label", "summary"],
-                },
-              },
-            },
-            required: ["label", "summary"],
-          },
-        },
-      },
-      required: ["title", "summary", "children"],
-    },
-  },
-};
 
 export async function GET(_req: Request, { params }: Params) {
   const { documentId } = await params;
@@ -170,13 +121,12 @@ export async function POST(req: Request, { params }: Params) {
           content: `다음 강의자료를 개념 중심의 계층적 마인드맵으로 구조화해줘.
 페이지 순서가 아니라 개념 간 관계와 논리적 흐름이 잘 드러나도록 해줘.
 각 노드에 label과 summary를 모두 작성해줘.
+반드시 JSON만 반환하고 다른 텍스트는 포함하지 마세요.
 
 강의자료:
 ${contextText}`,
         },
       ],
-      tools: [mindmapTool],
-      tool_choice: { type: "function", function: { name: "generate_mindmap" } },
       max_tokens: 3000,
       temperature: 0.3,
     });
@@ -184,11 +134,17 @@ ${contextText}`,
     return handleAiError(e);
   }
 
-  const toolCall = completion.choices[0].message.tool_calls?.[0];
-  if (!toolCall) return new Response("Function call failed", { status: 500 });
+  const raw = completion.choices[0].message.content ?? "{}";
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  const jsonStr = jsonMatch ? jsonMatch[0] : raw;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = JSON.parse((toolCall as any).function.arguments);
+  let result: unknown;
+  try {
+    result = JSON.parse(jsonStr);
+  } catch {
+    console.error("[mindmap] JSON parse failed, raw length:", raw.length);
+    return new Response("AI 응답 처리에 실패했습니다. 다시 시도해주세요.", { status: 500 });
+  }
 
   await supabase.from("generated_contents").upsert(
     { document_id: documentId, content_type: "mindmap", content_json: JSON.stringify(result) },

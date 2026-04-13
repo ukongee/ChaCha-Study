@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import apiClient from "@/lib/api/client";
 import TabShell from "@/components/study/TabShell";
 import type { ExamPointsResponse } from "@/types/study.types";
 import { Loader2 } from "lucide-react";
 
-export default function ExamPointsTab({ documentId, autoGenerate }: { documentId: string; autoGenerate?: boolean }) {
+export default function ExamPointsTab({ documentId }: { documentId: string }) {
   const [data, setData] = useState<ExamPointsResponse | null>(null);
   const [generating, setGenerating] = useState(false);
   const [checked, setChecked] = useState(false);
-  const autoTriggered = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -24,12 +23,7 @@ export default function ExamPointsTab({ documentId, autoGenerate }: { documentId
   }, []);
 
   useEffect(() => {
-    if (checked && !data && !generating && autoGenerate && !autoTriggered.current) {
-      autoTriggered.current = true;
-      generate(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checked, autoGenerate]);
+  }, [checked]);
 
   async function generate(force = false) {
     setGenerating(true);
