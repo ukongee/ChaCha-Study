@@ -156,17 +156,22 @@ function MindmapCanvas({ data }: { data: MindmapResponse }) {
       return;
     }
     const container = containerRef.current.getBoundingClientRect();
-    // Measure natural content size at scale=1
     const t = transformRef.current;
+    // offsetWidth/offsetHeight are unaffected by CSS transform — layout dimensions
     const naturalW = contentRef.current.offsetWidth / t.scale;
     const naturalH = contentRef.current.offsetHeight / t.scale;
+    // Guard: if content not yet measured, fall back to safe default
+    if (naturalW < 10 || naturalH < 10) {
+      setTransform({ x: 40, y: 40, scale: 1 });
+      return;
+    }
     const padding = 60;
     const scaleX = (container.width - padding * 2) / naturalW;
     const scaleY = (container.height - padding * 2) / naturalH;
-    const newScale = Math.min(1, scaleX, scaleY);
-    const x = (container.width - naturalW * newScale) / 2;
-    const y = (container.height - naturalH * newScale) / 2;
-    setTransform({ x: Math.max(padding, x), y: Math.max(padding, y), scale: newScale });
+    const newScale = Math.max(0.15, Math.min(1, scaleX, scaleY));
+    const x = Math.max(padding, (container.width - naturalW * newScale) / 2);
+    const y = Math.max(padding, (container.height - naturalH * newScale) / 2);
+    setTransform({ x, y, scale: newScale });
   }, []);
 
   const zoomIn = useCallback(() =>
@@ -174,12 +179,6 @@ function MindmapCanvas({ data }: { data: MindmapResponse }) {
   const zoomOut = useCallback(() =>
     setTransform((t) => ({ ...t, scale: Math.max(0.15, +(t.scale * 0.8).toFixed(2)) })), []);
 
-  // Auto-fit on first render
-  useEffect(() => {
-    const timer = setTimeout(fitToScreen, 100);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div className="relative flex-1 overflow-hidden bg-[#F8FAFF]" style={{ minHeight: 0 }}>
