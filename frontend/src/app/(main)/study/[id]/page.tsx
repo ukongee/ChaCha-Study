@@ -31,7 +31,13 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfFetchError, setPdfFetchError] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
+  const [isIOS] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    );
+  });
 
   const { data: doc, isLoading } = useQuery({
     queryKey: ["document", id],
@@ -39,14 +45,6 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
   });
 
   const pdfLoading = doc?.fileType === "PDF" && pdfUrl === null && !pdfFetchError;
-
-  useEffect(() => {
-    const ua = navigator.userAgent;
-    setIsIOS(
-      /iPad|iPhone|iPod/.test(ua) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-    );
-  }, []);
 
   useEffect(() => {
     if (doc?.fileType === "PDF") {
