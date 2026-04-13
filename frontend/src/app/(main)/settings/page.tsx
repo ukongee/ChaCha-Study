@@ -41,7 +41,8 @@ export default function SettingsPage() {
     if (!key) return;
     setApiKey(key);
     setInput("");
-    toast.success("API 키가 저장되었습니다.");
+    toast.success("API 키가 저장되었습니다. 페이지를 새로고침합니다...");
+    setTimeout(() => window.location.reload(), 800);
   }
 
   function handleClear() {
