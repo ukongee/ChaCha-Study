@@ -31,6 +31,7 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfFetchError, setPdfFetchError] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   const { data: doc, isLoading } = useQuery({
     queryKey: ["document", id],
@@ -38,6 +39,14 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
   });
 
   const pdfLoading = doc?.fileType === "PDF" && pdfUrl === null && !pdfFetchError;
+
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    setIsIOS(
+      /iPad|iPhone|iPod/.test(ua) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    );
+  }, []);
 
   useEffect(() => {
     if (doc?.fileType === "PDF") {
@@ -107,11 +116,27 @@ export default function StudyWorkspacePage({ params }: { params: Promise<{ id: s
               <Loader2 className="w-6 h-6 animate-spin text-[#1A3FAA]" />
             </div>
           ) : pdfUrl ? (
-            <iframe
-              src={pdfUrl}
-              className="w-full h-full"
-              title={doc.originalFileName}
-            />
+            isIOS ? (
+              <div className="flex flex-col items-center justify-center h-full gap-5 px-6 text-center">
+                <img src="/chacha.webp" alt="차차" className="w-16 h-16 object-contain opacity-50" />
+                <p className="text-[#5B6887] text-base">iPad Safari에서는 PDF 미리보기를 지원하지 않습니다.</p>
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#1A3FAA] text-white text-base font-semibold hover:bg-[#2B52CC] transition shadow-md shadow-blue-200"
+                >
+                  <FileText className="w-4 h-4" />
+                  PDF 새 탭에서 열기
+                </a>
+              </div>
+            ) : (
+              <iframe
+                src={pdfUrl}
+                className="w-full h-full"
+                title={doc.originalFileName}
+              />
+            )
           ) : (
             <div className="flex items-center justify-center h-full text-[#8B96B0] text-base">
               PDF를 불러올 수 없습니다.
