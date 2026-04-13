@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getStoredApiKey } from "@/hooks/useApiKey";
 
 const apiClient = axios.create({
   baseURL: "",
@@ -6,10 +7,10 @@ const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach user's API key from localStorage on every request
+// Attach user's API key on every request (localStorage + memory fallback)
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const key = localStorage.getItem("cnu_ai_api_key");
+    const key = getStoredApiKey();
     if (key) config.headers["X-AI-Api-Key"] = key;
   }
   return config;
