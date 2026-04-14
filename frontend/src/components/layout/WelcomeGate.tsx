@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useApiKey } from "@/hooks/useApiKey";
+import { identifyUser, getSessionToken } from "@/hooks/useUserId";
 import {
   FileText,
   BrainCircuit,
@@ -61,6 +62,8 @@ function ApiKeyModal({ onClose, onKeySet }: { onClose: () => void; onKeySet: (ke
     }
 
     onKeySet(key);
+    // Identify user (fire-and-forget — non-blocking)
+    identifyUser(key).catch(() => {});
     toast.success("차차스터디를 시작합니다!");
     onClose();
     setValidating(false);
@@ -176,6 +179,14 @@ export default function WelcomeGate({ children }: { children: React.ReactNode })
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setHasMounted(true), []);
+
+  // Returning user: api_key exists but no session_token yet → auto-identify
+  // This registers the key with the server so user_id can be resolved on every request.
+  useEffect(() => {
+    if (apiKey && !getSessionToken()) {
+      identifyUser(apiKey).catch(() => {});
+    }
+  }, [apiKey]);
 
   // SSR + 첫 페인트: 항상 children 렌더 (hydration mismatch 방지)
   if (!hasMounted) return <>{children}</>;

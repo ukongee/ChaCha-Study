@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, Check, Trash2, ExternalLink, ChevronDown, ChevronUp, Shield, LogIn, KeyRound, Copy } from "lucide-react";
 import { useApiKey } from "@/hooks/useApiKey";
+import { identifyUser, clearUserId } from "@/hooks/useUserId";
 import { toast } from "sonner";
 import Image from "next/image";
 
@@ -36,11 +37,13 @@ export default function SettingsPage() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
 
-  function handleSave() {
+  async function handleSave() {
     const key = input.trim();
     if (!key) return;
     setApiKey(key);
     setInput("");
+    // Link this key to a user_id (creates one if new key)
+    await identifyUser(key).catch(() => {});
     toast.success("API 키가 저장되었습니다. 페이지를 새로고침합니다...");
     setTimeout(() => window.location.reload(), 800);
   }
@@ -48,6 +51,7 @@ export default function SettingsPage() {
   function handleClear() {
     if (!confirm("API 키를 삭제하시겠습니까?")) return;
     clearApiKey();
+    clearUserId();
     toast.success("API 키가 삭제되었습니다.");
   }
 

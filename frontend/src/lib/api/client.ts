@@ -7,7 +7,8 @@ const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach user's API key on every request (localStorage + memory fallback)
+// Attach API key on every request.
+// user_id is NEVER sent by the client — resolved server-side from api_key.
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const key = getStoredApiKey();

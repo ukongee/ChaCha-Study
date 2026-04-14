@@ -1,9 +1,5 @@
-import { createHash } from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
-
-function hashApiKey(key: string): string {
-  return createHash("sha256").update(key).digest("hex");
-}
+import { resolveUserContext } from "@/lib/resolveUser";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -24,21 +20,29 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function DELETE(req: Request, { params }: Params) {
-  const apiKey = req.headers.get("x-ai-api-key");
-  if (!apiKey) return new Response("API 키가 필요합니다.", { status: 401 });
+  const { userId, keyHash } = await resolveUserContext(req);
+
+  if (!userId && !keyHash) {
+    return new Response("API 키가 필요합니다.", { status: 401 });
+  }
 
   const { id } = await params;
   const supabase = createServiceClient();
-  const keyHash = hashApiKey(apiKey);
 
   const { data: doc } = await supabase
     .from("documents")
-    .select("file_path, api_key_hash")
+    .select("file_path, user_id, api_key_hash")
     .eq("id", id)
     .single();
 
   if (!doc) return new Response("Not found", { status: 404 });
-  if (doc.api_key_hash !== keyHash) return new Response("Forbidden", { status: 403 });
+
+  // Ownership: user_id (primary) or api_key_hash (legacy fallback)
+  const isOwner = doc.user_id
+    ? doc.user_id === userId
+    : keyHash !== null && keyHash === doc.api_key_hash;
+
+  if (!isOwner) return new Response("Forbidden", { status: 403 });
 
   if (doc.file_path) {
     await supabase.storage.from("documents").remove([doc.file_path]);

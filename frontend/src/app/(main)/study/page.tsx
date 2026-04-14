@@ -2,24 +2,37 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Upload, BookOpen, Loader2, Trash2, AlertCircle } from "lucide-react";
+import { Upload, BookOpen, Loader2, Trash2, AlertCircle, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { documentsApi } from "@/lib/api/documents.api";
+import { useApiKey } from "@/hooks/useApiKey";
 import type { Document } from "@/types/study.types";
 import { format } from "@/lib/format";
 
 export default function StudyListPage() {
   const qc = useQueryClient();
+  const router = useRouter();
+  const { apiKey } = useApiKey();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [showNoKeyModal, setShowNoKeyModal] = useState(false);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["documents"],
     queryFn: documentsApi.getDocuments,
   });
+
+  function handleUploadClick() {
+    if (!apiKey) {
+      setShowNoKeyModal(true);
+      return;
+    }
+    inputRef.current?.click();
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -82,7 +95,7 @@ export default function StudyListPage() {
         </div>
 
         <button
-          onClick={() => inputRef.current?.click()}
+          onClick={handleUploadClick}
           disabled={uploading}
           className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#1A3FAA] hover:bg-[#2B52CC] disabled:opacity-50 text-white text-base font-semibold transition shadow-md shadow-blue-200"
         >
@@ -111,7 +124,7 @@ export default function StudyListPage() {
       {/* Drop zone (when empty) */}
       {!isLoading && documents.length === 0 && (
         <button
-          onClick={() => inputRef.current?.click()}
+          onClick={handleUploadClick}
           className="w-full border-2 border-dashed border-[#A8B8E8] hover:border-[#1A3FAA] bg-white rounded-2xl py-24 text-center transition group"
         >
           <img
@@ -177,6 +190,38 @@ export default function StudyListPage() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* API key required modal */}
+      {showNoKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-7 w-full max-w-sm mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
+                <KeyRound className="w-5 h-5 text-[#1A3FAA]" />
+              </div>
+              <h2 className="text-lg font-bold text-[#0F1729]">API 키가 필요합니다</h2>
+            </div>
+            <p className="text-sm text-[#5B6887] leading-relaxed mb-6">
+              파일을 업로드하려면 CNU AI API 키가 필요합니다.
+              설정 페이지에서 키를 입력한 후 다시 시도해주세요.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowNoKeyModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-[#D1D9F0] text-[#5B6887] text-sm font-semibold hover:bg-[#F0F4FF] transition"
+              >
+                닫기
+              </button>
+              <button
+                onClick={() => { setShowNoKeyModal(false); router.push("/settings"); }}
+                className="flex-1 py-2.5 rounded-xl bg-[#1A3FAA] hover:bg-[#2B52CC] text-white text-sm font-semibold transition shadow-md shadow-blue-200"
+              >
+                설정으로 이동
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

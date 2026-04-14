@@ -2,16 +2,12 @@
  * File upload pipeline:
  * 1. Parse PDF/PPTX text
  * 2. Save to Supabase Storage
- * 3. Insert document record
+ * 3. Insert document record (user_id resolved server-side from api_key)
  */
-import { createHash } from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
+import { resolveUserId } from "@/lib/resolveUser";
 import { parsePdf } from "@/lib/parser/pdf";
 import { parsePptx, parsePpt } from "@/lib/parser/pptx";
-
-function hashApiKey(key: string): string {
-  return createHash("sha256").update(key).digest("hex");
-}
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -27,8 +23,13 @@ export async function POST(req: Request) {
   const apiKey = req.headers.get("x-ai-api-key");
   if (!apiKey) return new Response("API 키가 필요합니다.", { status: 401 });
 
+  // Server resolves user_id — client cannot spoof this
+  const userId = await resolveUserId(req);
+  if (!userId) {
+    return new Response("먼저 설정에서 API 키를 저장해주세요.", { status: 401 });
+  }
+
   const supabase = createServiceClient();
-  const keyHash = hashApiKey(apiKey);
 
   let formData: FormData;
   try {
@@ -45,11 +46,9 @@ export async function POST(req: Request) {
   if (!fileType) return new Response("PDF, PPT, PPTX 파일만 업로드 가능합니다.", { status: 400 });
 
   const rawBuffer = await file.arrayBuffer();
-  // Defensive copy: parsePdf may detach the underlying ArrayBuffer
   const buffer = rawBuffer.slice(0);
   const uploadBuffer = rawBuffer.slice(0);
 
-  // Parse text
   let parseResult: { fullText: string; pageTexts: string[]; pageCount: number };
   try {
     if (fileType === "PDF") {
@@ -64,7 +63,6 @@ export async function POST(req: Request) {
     return new Response("파일 파싱에 실패했습니다.", { status: 422 });
   }
 
-  // Upload to Supabase Storage (path: docId placeholder — we insert doc first to get id)
   const tempId = crypto.randomUUID();
   const ext = file.name.split(".").pop() ?? "bin";
   const storagePath = `${tempId}/original.${ext}`;
@@ -78,7 +76,6 @@ export async function POST(req: Request) {
     return new Response("파일 저장에 실패했습니다.", { status: 500 });
   }
 
-  // Insert document record
   const { data: doc, error: dbError } = await supabase
     .from("documents")
     .insert({
@@ -91,7 +88,7 @@ export async function POST(req: Request) {
       page_count: parseResult.pageCount,
       file_size: file.size,
       embedding_status: "pending",
-      api_key_hash: keyHash,
+      user_id: userId,
     })
     .select("id, original_file_name, file_type, page_count, file_size, embedding_status, created_at")
     .single();

@@ -37,3 +37,4 @@ frontend/.env.local
 
 # OMC
 .omc/
+.vercel
