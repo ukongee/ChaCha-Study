@@ -5,7 +5,7 @@
  * 3. Insert document record (user_id resolved server-side from api_key)
  */
 import { createServiceClient } from "@/lib/supabase/service";
-import { resolveUserId } from "@/lib/resolveUser";
+import { resolveUser } from "@/lib/resolveUser";
 import { parsePdf } from "@/lib/parser/pdf";
 import { parsePptx, parsePpt } from "@/lib/parser/pptx";
 
@@ -24,8 +24,8 @@ export async function POST(req: Request) {
   if (!apiKey) return new Response("API 키가 필요합니다.", { status: 401 });
 
   // Server resolves user_id — client cannot spoof this
-  const userId = await resolveUserId(req);
-  if (!userId) {
+  const ctx = await resolveUser(req);
+  if (!ctx) {
     return new Response("먼저 설정에서 API 키를 저장해주세요.", { status: 401 });
   }
 
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       page_count: parseResult.pageCount,
       file_size: file.size,
       embedding_status: "pending",
-      user_id: userId,
+      user_id: ctx.userId,
     })
     .select("id, original_file_name, file_type, page_count, file_size, embedding_status, created_at")
     .single();

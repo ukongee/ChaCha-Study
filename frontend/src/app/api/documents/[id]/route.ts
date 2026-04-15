@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { resolveUserContext } from "@/lib/resolveUser";
+import { resolveUser, resolveKeyHash } from "@/lib/resolveUser";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -20,12 +20,6 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function DELETE(req: Request, { params }: Params) {
-  const { userId, keyHash } = await resolveUserContext(req);
-
-  if (!userId && !keyHash) {
-    return new Response("API 키가 필요합니다.", { status: 401 });
-  }
-
   const { id } = await params;
   const supabase = createServiceClient();
 
@@ -37,10 +31,15 @@ export async function DELETE(req: Request, { params }: Params) {
 
   if (!doc) return new Response("Not found", { status: 404 });
 
-  // Ownership: user_id (primary) or api_key_hash (legacy fallback)
-  const isOwner = doc.user_id
-    ? doc.user_id === userId
-    : keyHash !== null && keyHash === doc.api_key_hash;
+  // Ownership check: user_id (new) or api_key_hash (legacy fallback)
+  let isOwner = false;
+  if (doc.user_id) {
+    const ctx = await resolveUser(req);
+    isOwner = ctx?.userId === doc.user_id;
+  } else if (doc.api_key_hash) {
+    const keyHash = resolveKeyHash(req);
+    isOwner = keyHash === doc.api_key_hash;
+  }
 
   if (!isOwner) return new Response("Forbidden", { status: 403 });
 
