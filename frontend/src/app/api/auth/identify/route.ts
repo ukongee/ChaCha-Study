@@ -2,18 +2,17 @@
  * POST /api/auth/identify
  *
  * Registers an API key and returns a server-issued session token.
- * The client NEVER receives user_id — all identity resolution is server-side.
+ * The client NEVER receives or sends user_id.
  *
- * Merge logic (key change without data loss):
- *   - If sessionToken is provided and valid → new key is linked to the same user_id
- *   - If no sessionToken (or invalid) → new user is created
+ * Uses resolveUser() internally — which handles the full fallback chain:
+ *   user_api_keys → documents.api_key_hash (legacy) → create new user
  *
- * Multi-device:
- *   - Same api_key on any device → always resolves to the same user_id (via user_api_keys)
- *   - No session token needed for read access on a second device
+ * Merge flow (key change without data loss):
+ *   - If sessionToken is provided and valid → new key linked to same user_id
+ *   - Otherwise → resolveUser() handles it (may find via legacy fallback)
  */
 import { createServiceClient } from "@/lib/supabase/service";
-import { hashApiKey } from "@/lib/resolveUser";
+import { resolveUser, hashApiKey } from "@/lib/resolveUser";
 
 export async function POST(req: Request) {
   const apiKey = req.headers.get("x-ai-api-key");
@@ -25,32 +24,31 @@ export async function POST(req: Request) {
   const keyHash = hashApiKey(apiKey);
   const supabase = createServiceClient();
 
-  // ── Case 1: Key already registered ──────────────────────────────────
-  const { data: existingKey } = await supabase
-    .from("user_api_keys")
-    .select("user_id")
-    .eq("key_hash", keyHash)
-    .single();
-
-  if (existingKey) {
-    // Refresh session (or create new one for this device)
-    const token = await upsertSession(supabase, existingKey.user_id, sessionToken);
-    return Response.json({ sessionToken: token });
-  }
-
-  // ── Case 2: New key — check if same user (key change / merge) ───────
+  // ── Key-change merge: sessionToken → existing user_id + link new key ──
   if (sessionToken) {
     const { data: session } = await supabase
       .from("user_sessions")
       .select("user_id")
       .eq("token", sessionToken)
-      .single();
+      .maybeSingle();
 
     if (session) {
-      // Merge: link new key to existing user_id
-      await supabase
+      // Check if new key already mapped to a DIFFERENT user — don't cross-link
+      const { data: existingMapping } = await supabase
         .from("user_api_keys")
-        .insert({ key_hash: keyHash, user_id: session.user_id });
+        .select("user_id")
+        .eq("key_hash", keyHash)
+        .maybeSingle();
+
+      if (!existingMapping) {
+        // Safe to merge: link new key to session's user
+        await supabase
+          .from("user_api_keys")
+          .insert({ key_hash: keyHash, user_id: session.user_id })
+          .then(({ error }) => {
+            if (error) console.error("[identify] merge insert error:", error.message);
+          });
+      }
 
       await supabase
         .from("user_sessions")
@@ -61,37 +59,28 @@ export async function POST(req: Request) {
     }
   }
 
-  // ── Case 3: Completely new user ──────────────────────────────────────
-  const { data: user, error } = await supabase
-    .from("users")
-    .insert({})
-    .select("id")
-    .single();
-
-  if (error || !user) {
-    console.error("[identify] user insert error:", error?.message);
-    return new Response("사용자 생성에 실패했습니다.", { status: 500 });
+  // ── Normal flow: resolveUser (handles all fallback cases) ────────────
+  const ctx = await resolveUser(req);
+  if (!ctx) {
+    return new Response("사용자 처리에 실패했습니다.", { status: 500 });
   }
 
-  await supabase
-    .from("user_api_keys")
-    .insert({ key_hash: keyHash, user_id: user.id });
-
-  const token = await upsertSession(supabase, user.id, null);
-  return Response.json({ sessionToken: token }, { status: 201 });
+  // Issue or refresh session token for this user
+  const token = await upsertSession(supabase, ctx.userId, sessionToken);
+  return Response.json({ sessionToken: token });
 }
-
-// ── Helper ────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function upsertSession(supabase: any, userId: string, existingToken: string | null): Promise<string> {
   if (existingToken) {
-    await supabase
+    const { data } = await supabase
       .from("user_sessions")
       .update({ last_used_at: new Date().toISOString() })
       .eq("token", existingToken)
-      .eq("user_id", userId);
-    return existingToken;
+      .eq("user_id", userId)
+      .select("token")
+      .maybeSingle();
+    if (data?.token) return data.token;
   }
 
   const { data } = await supabase

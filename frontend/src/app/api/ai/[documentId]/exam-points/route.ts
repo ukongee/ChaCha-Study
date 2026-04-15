@@ -58,12 +58,13 @@ interface Params {
 export async function GET(_req: Request, { params }: Params) {
   const { documentId } = await params;
   const supabase = createServiceClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("generated_contents")
     .select("content_json")
     .eq("document_id", documentId)
     .eq("content_type", "exam-points")
-    .single();
+    .maybeSingle();
+  if (error) console.error("[exam-points GET] DB error:", error.message);
   if (!data) return new Response(null, { status: 404 });
   try { return Response.json(JSON.parse(data.content_json)); }
   catch { return new Response(null, { status: 404 }); }
@@ -90,7 +91,7 @@ export async function POST(req: Request, { params }: Params) {
       .select("content_json")
       .eq("document_id", documentId)
       .eq("content_type", "exam-points")
-      .single();
+      .maybeSingle();
     if (cached) {
       try { return Response.json(JSON.parse(cached.content_json)); }
       catch { /* 재생성 */ }
@@ -105,7 +106,7 @@ export async function POST(req: Request, { params }: Params) {
       .from("documents")
       .select("extracted_text, page_texts_json")
       .eq("id", documentId)
-      .single();
+      .maybeSingle();
     if (!doc) return new Response("Not found", { status: 404 });
 
     const pageTexts: string[] = doc.page_texts_json ? JSON.parse(doc.page_texts_json) : [];
@@ -155,10 +156,14 @@ export async function POST(req: Request, { params }: Params) {
     return new Response("AI 응답 처리에 실패했습니다. 다시 시도해주세요.", { status: 500 });
   }
 
-  await supabase.from("generated_contents").upsert(
-    { document_id: documentId, content_type: "exam-points", content_json: resultJson },
-    { onConflict: "document_id,content_type" }
-  );
+  try {
+    await supabase.from("generated_contents").upsert(
+      { document_id: documentId, content_type: "exam-points", content_json: resultJson },
+      { onConflict: "document_id,content_type" }
+    );
+  } catch (e) {
+    console.error("[exam-points] DB save failed:", e);
+  }
 
   return Response.json(parsed);
 }

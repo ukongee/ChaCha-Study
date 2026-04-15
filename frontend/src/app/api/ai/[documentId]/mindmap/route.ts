@@ -80,12 +80,13 @@ const SYSTEM_PROMPT = `당신은 강의자료를 NotebookLM 수준의 풍부한 
 export async function GET(_req: Request, { params }: Params) {
   const { documentId } = await params;
   const supabase = createServiceClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("generated_contents")
     .select("content_json")
     .eq("document_id", documentId)
     .eq("content_type", "mindmap")
-    .single();
+    .maybeSingle();
+  if (error) console.error("[mindmap GET] DB error:", error.message);
   if (!data) return new Response(null, { status: 404 });
   try { return Response.json(JSON.parse(data.content_json)); }
   catch { return new Response(null, { status: 404 }); }
@@ -110,7 +111,7 @@ export async function POST(req: Request, { params }: Params) {
     .from("documents")
     .select("extracted_text")
     .eq("id", documentId)
-    .single();
+    .maybeSingle();
 
   if (!doc) return new Response("Not found", { status: 404 });
 
@@ -120,7 +121,7 @@ export async function POST(req: Request, { params }: Params) {
       .select("content_json")
       .eq("document_id", documentId)
       .eq("content_type", "mindmap")
-      .single();
+      .maybeSingle();
     if (cached) {
       try { return Response.json(JSON.parse(cached.content_json)); }
       catch { /* 재생성 */ }
@@ -160,10 +161,15 @@ ${(doc.extracted_text ?? "").slice(0, 10000)}`,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = JSON.parse((toolCall as any).function.arguments);
 
-  await supabase.from("generated_contents").upsert(
-    { document_id: documentId, content_type: "mindmap", content_json: JSON.stringify(result) },
-    { onConflict: "document_id,content_type" }
-  );
+  // DB 저장 실패해도 AI 결과는 반드시 반환
+  try {
+    await supabase.from("generated_contents").upsert(
+      { document_id: documentId, content_type: "mindmap", content_json: JSON.stringify(result) },
+      { onConflict: "document_id,content_type" }
+    );
+  } catch (e) {
+    console.error("[mindmap] DB save failed:", e);
+  }
 
   return Response.json(result);
 }

@@ -180,10 +180,11 @@ export default function WelcomeGate({ children }: { children: React.ReactNode })
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setHasMounted(true), []);
 
-  // Returning user: api_key exists but no session_token yet → auto-identify
-  // This registers the key with the server so user_id can be resolved on every request.
+  // Always identify on app load if api_key exists.
+  // Ensures user_api_keys mapping exists so resolveUser() works on every request.
+  // Also handles: returning users without sessionToken, key-change merge.
   useEffect(() => {
-    if (apiKey && !getSessionToken()) {
+    if (apiKey) {
       identifyUser(apiKey).catch(() => {});
     }
   }, [apiKey]);

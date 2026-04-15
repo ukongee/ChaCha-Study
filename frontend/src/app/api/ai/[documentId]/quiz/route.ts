@@ -66,7 +66,7 @@ export async function POST(req: Request, { params }: Params) {
       .select("content_json")
       .eq("document_id", documentId)
       .eq("content_type", "quiz")
-      .single();
+      .maybeSingle();
     if (cached) {
       try { return Response.json(JSON.parse(cached.content_json)); }
       catch { /* 재생성 */ }
@@ -81,7 +81,7 @@ export async function POST(req: Request, { params }: Params) {
       .from("documents")
       .select("extracted_text")
       .eq("id", documentId)
-      .single();
+      .maybeSingle();
     if (!doc) return new Response("Not found", { status: 404 });
     contextText = (doc.extracted_text ?? "").slice(0, 8000);
   }
@@ -142,10 +142,14 @@ ${NO_LATEX_RULE}
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = JSON.parse((toolCall as any).function.arguments);
 
-  await supabase.from("generated_contents").upsert(
-    { document_id: documentId, content_type: "quiz", content_json: JSON.stringify(result) },
-    { onConflict: "document_id,content_type" }
-  );
+  try {
+    await supabase.from("generated_contents").upsert(
+      { document_id: documentId, content_type: "quiz", content_json: JSON.stringify(result) },
+      { onConflict: "document_id,content_type" }
+    );
+  } catch (e) {
+    console.error("[quiz] DB save failed:", e);
+  }
 
   return Response.json(result);
 }

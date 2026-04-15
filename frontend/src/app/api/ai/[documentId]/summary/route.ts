@@ -99,7 +99,7 @@ export async function GET(_req: Request, { params }: Params) {
     .select("content_json")
     .eq("document_id", documentId)
     .eq("content_type", "summary")
-    .single();
+    .maybeSingle();
   if (!data) return new Response(null, { status: 404 });
   try { return Response.json(JSON.parse(data.content_json)); }
   catch { return new Response(null, { status: 404 }); }
@@ -125,7 +125,7 @@ export async function POST(req: Request, { params }: Params) {
     .from("documents")
     .select("extracted_text, page_texts_json, page_count, file_path, file_type")
     .eq("id", documentId)
-    .single();
+    .maybeSingle();
   if (!doc) return new Response("Not found", { status: 404 });
 
   const totalPages: number = doc.page_count ?? 1;
@@ -144,7 +144,7 @@ export async function POST(req: Request, { params }: Params) {
     .select("content_json")
     .eq("document_id", documentId)
     .eq("content_type", "summary")
-    .single();
+    .maybeSingle();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let existing: any = null;

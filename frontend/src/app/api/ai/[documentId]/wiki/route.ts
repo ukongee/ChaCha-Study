@@ -68,13 +68,14 @@ export async function GET(_req: Request, { params }: Params) {
   const { documentId } = await params;
   const supabase = createServiceClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("generated_contents")
     .select("content_json")
     .eq("document_id", documentId)
     .eq("content_type", "wiki")
-    .single();
+    .maybeSingle();
 
+  if (error) console.error("[wiki GET] DB error:", error.message);
   if (!data) return new Response(null, { status: 404 });
   try { return Response.json(JSON.parse(data.content_json)); }
   catch { return new Response(null, { status: 404 }); }
@@ -101,7 +102,7 @@ export async function POST(req: Request, { params }: Params) {
       .select("content_json")
       .eq("document_id", documentId)
       .eq("content_type", "wiki")
-      .single();
+      .maybeSingle();
     if (cached) {
       try { return Response.json(JSON.parse(cached.content_json)); }
       catch { /* 재생성 */ }
@@ -116,7 +117,7 @@ export async function POST(req: Request, { params }: Params) {
       .from("documents")
       .select("extracted_text, page_texts_json")
       .eq("id", documentId)
-      .single();
+      .maybeSingle();
     if (!doc) return new Response("Not found", { status: 404 });
 
     const pageTexts: string[] = doc.page_texts_json ? JSON.parse(doc.page_texts_json) : [];
@@ -167,75 +168,48 @@ ${contextText}`,
     generatedAt: new Date().toISOString(),
   };
 
-  await supabase.from("generated_contents").upsert(
-    { document_id: documentId, content_type: "wiki", content_json: JSON.stringify(wikiData) },
-    { onConflict: "document_id,content_type" }
-  );
+  try {
+    await supabase.from("generated_contents").upsert(
+      { document_id: documentId, content_type: "wiki", content_json: JSON.stringify(wikiData) },
+      { onConflict: "document_id,content_type" }
+    );
+  } catch (e) {
+    console.error("[wiki] DB save failed:", e);
+  }
 
   return Response.json(wikiData);
 }
 
-/**
- * Wiki 텍스트를 ## 섹션 단위로 분할하고 키워드를 추출합니다.
- */
 function parseWikiIntoSections(wikiText: string): WikiSection[] {
   const sections: WikiSection[] = [];
-
-  // ## 헤더로 분리 (### 은 포함)
   const parts = wikiText.split(/\n(?=## )/);
 
   for (const part of parts) {
     const trimmed = part.trim();
     if (!trimmed) continue;
-
     const lines = trimmed.split("\n");
     const titleLine = lines[0].replace(/^##\s+/, "").trim();
     const content = lines.slice(1).join("\n").trim();
-
     if (!titleLine || !content) continue;
-
-    sections.push({
-      title: titleLine,
-      content,
-      keywords: extractKeywords(titleLine + " " + content),
-    });
+    sections.push({ title: titleLine, content, keywords: extractKeywords(titleLine + " " + content) });
   }
 
-  // 섹션이 없으면 전체를 하나로
   if (sections.length === 0 && wikiText.trim()) {
-    sections.push({
-      title: "전체 내용",
-      content: wikiText.trim(),
-      keywords: extractKeywords(wikiText),
-    });
+    sections.push({ title: "전체 내용", content: wikiText.trim(), keywords: extractKeywords(wikiText) });
   }
 
   return sections;
 }
 
-/**
- * 텍스트에서 주요 키워드를 추출합니다. (2글자 이상 명사/용어 중심)
- */
 function extractKeywords(text: string): string[] {
-  // ### 소제목, **강조어**, 괄호 앞 용어 등에서 추출
   const candidates = new Set<string>();
-
-  // ### 소제목
   const subheadings = text.match(/###\s+([^\n]+)/g) ?? [];
   subheadings.forEach((h) => candidates.add(h.replace(/^###\s+/, "").trim()));
-
-  // **강조어**
   const bold = text.match(/\*\*([^*]+)\*\*/g) ?? [];
   bold.forEach((b) => candidates.add(b.replace(/\*\*/g, "").trim()));
-
-  // 2글자 이상 한글 단어 (빈도 기반 상위 10개)
   const words = text.match(/[가-힣]{2,8}/g) ?? [];
   const freq: Record<string, number> = {};
   words.forEach((w) => { freq[w] = (freq[w] ?? 0) + 1; });
-  Object.entries(freq)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .forEach(([w]) => candidates.add(w));
-
+  Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 10).forEach(([w]) => candidates.add(w));
   return Array.from(candidates).slice(0, 15);
 }

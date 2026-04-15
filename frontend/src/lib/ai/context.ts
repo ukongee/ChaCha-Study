@@ -28,13 +28,17 @@ export async function getSummaryContext(
 ): Promise<string> {
   const supabase = createServiceClient();
 
-  const { data: cached } = await supabase
+  const { data: cached, error } = await supabase
     .from("generated_contents")
     .select("content_json")
     .eq("document_id", documentId)
     .eq("content_type", "summary")
-    .single();
+    .maybeSingle();
 
+  if (error) {
+    console.error("[getSummaryContext] DB error:", error.message);
+    return "";
+  }
   if (!cached) return "";
 
   try {
