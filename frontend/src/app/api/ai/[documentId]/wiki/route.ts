@@ -153,7 +153,7 @@ export async function POST(req: Request, { params }: Params) {
 ${contextText}`,
         },
       ],
-      max_tokens: 6000,
+      max_tokens: 8000,
       temperature: 0.3,
     });
   } catch (e) {

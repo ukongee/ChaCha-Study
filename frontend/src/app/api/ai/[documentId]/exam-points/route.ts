@@ -137,7 +137,7 @@ export async function POST(req: Request, { params }: Params) {
           content: `다음 강의자료를 분석하여 시험 대비 포인트를 정리해줘. 출제 가능성이 높은 개념, 헷갈리는 개념 비교, 암기 포인트를 모두 포함해줘.\n\n${contextText}`,
         },
       ],
-      max_tokens: 4096,
+      max_tokens: 6000,
       temperature: 0.3,
     });
   } catch (e) {
