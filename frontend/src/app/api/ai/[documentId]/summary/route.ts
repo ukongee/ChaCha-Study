@@ -138,7 +138,7 @@ export async function POST(req: Request, { params }: Params) {
   const isImageBased =
     doc.file_type === "PDF" &&
     pageTexts.length > 0 &&
-    pageTexts.every((t) => !t?.trim() || t.trim().length < 50);
+    pageTexts.every((t) => !t?.trim() || t.trim().length < 150);
 
   // 기존 저장 데이터 로드
   const { data: cached } = await supabase
