@@ -14,6 +14,8 @@ export const maxDuration = 300;
 
 const MODEL = "claude-sonnet-4-6";
 const CHUNK_SIZE = 10;
+/** Vision 모드는 요청당 페이지 수를 줄여 60초 타임아웃 방지 */
+const VISION_CHUNK_SIZE = 5;
 const PAGE_CHAR_LIMIT = 2000;
 /** Vision 처리 1회당 페이지 수 */
 const VISION_CHUNK_PAGES = 3;
@@ -161,7 +163,8 @@ export async function POST(req: Request, { params }: Params) {
     : 0;
 
   const startPage = force ? 1 : maxGeneratedPage + 1;
-  const endPage = Math.min(startPage + CHUNK_SIZE - 1, totalPages);
+  const chunkSize = isImageBased ? VISION_CHUNK_SIZE : CHUNK_SIZE;
+  const endPage = Math.min(startPage + chunkSize - 1, totalPages);
   const isFirstChunk = startPage === 1;
 
   if (!force && startPage > totalPages) {
