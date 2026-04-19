@@ -10,11 +10,15 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
 import { NO_LATEX_RULE } from "@/lib/ai/context";
 
+export const maxDuration = 300;
+
 const MODEL = "claude-sonnet-4-6";
 const CHUNK_SIZE = 10;
 const PAGE_CHAR_LIMIT = 2000;
 /** Vision 처리 1회당 페이지 수 */
-const VISION_CHUNK_PAGES = 5;
+const VISION_CHUNK_PAGES = 3;
+/** Vision fallback 허용 최대 파일 크기 (5MB) */
+const VISION_MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 const SUMMARY_SYSTEM = `당신은 대학교 강의자료를 페이지별로 해설해주는 학습 도우미입니다.
 
@@ -121,7 +125,7 @@ export async function POST(req: Request, { params }: Params) {
   // 문서 로드 (file_path 포함 — Vision fallback 용)
   const { data: doc } = await supabase
     .from("documents")
-    .select("extracted_text, page_texts_json, page_count, file_path, file_type")
+    .select("extracted_text, page_texts_json, page_count, file_path, file_type, file_size")
     .eq("id", documentId)
     .maybeSingle();
   if (!doc) return new Response("Not found", { status: 404 });
@@ -167,13 +171,21 @@ export async function POST(req: Request, { params }: Params) {
   const ai = createAiClient(apiKey);
 
   // ── Vision fallback (이미지 기반 PDF) ──────────────────────────────
-  if (isImageBased && doc.file_path) {
+  if (isImageBased && doc.file_path && (doc.file_size ?? 0) <= VISION_MAX_FILE_SIZE) {
     return await processWithVision({
       ai, supabase, documentId,
       filePath: doc.file_path,
       startPage, endPage, totalPages,
       isFirstChunk, existingPages, existing, force,
     });
+  }
+
+  // 이미지 기반이지만 파일이 너무 큰 경우
+  if (isImageBased && (doc.file_size ?? 0) > VISION_MAX_FILE_SIZE) {
+    return new Response(
+      "이 PDF는 이미지 기반이지만 파일 크기(5MB 초과)로 인해 Vision 분석이 불가합니다. 텍스트가 포함된 PDF를 사용해주세요.",
+      { status: 422 }
+    );
   }
 
   // ── 텍스트 기반 처리 ────────────────────────────────────────────────
