@@ -13,8 +13,6 @@ import { NO_LATEX_RULE } from "@/lib/ai/context";
 const MODEL = "claude-sonnet-4-6";
 const CHUNK_SIZE = 10;
 const PAGE_CHAR_LIMIT = 2000;
-/** 이미지 기반 판단 기준 (전체 텍스트 길이) */
-const IMAGE_PDF_THRESHOLD = 1000;
 /** Vision 처리 1회당 페이지 수 */
 const VISION_CHUNK_PAGES = 5;
 
@@ -132,10 +130,10 @@ export async function POST(req: Request, { params }: Params) {
   const pageTexts: string[] = doc.page_texts_json ? JSON.parse(doc.page_texts_json) : [];
   const fullText: string = doc.extracted_text ?? "";
 
-  // 이미지 기반 PDF 판단
+  // 이미지 기반 PDF 판단: 모든 페이지 텍스트가 50자 미만이면 이미지 기반으로 간주
   const isImageBased =
     doc.file_type === "PDF" &&
-    fullText.length < IMAGE_PDF_THRESHOLD &&
+    pageTexts.length > 0 &&
     pageTexts.every((t) => !t?.trim() || t.trim().length < 50);
 
   // 기존 저장 데이터 로드
