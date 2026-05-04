@@ -173,20 +173,10 @@ export async function POST(req: Request, { params }: Params) {
 
   const ai = createAiClient(apiKey);
 
-  // ── Vision fallback (이미지 기반 PDF) ──────────────────────────────
-  if (isImageBased && doc.file_path && (doc.file_size ?? 0) <= VISION_MAX_FILE_SIZE) {
-    return await processWithVision({
-      ai, supabase, documentId,
-      filePath: doc.file_path,
-      startPage, endPage, totalPages,
-      isFirstChunk, existingPages, existing, force,
-    });
-  }
-
-  // 이미지 기반이지만 파일이 너무 큰 경우
-  if (isImageBased && (doc.file_size ?? 0) > VISION_MAX_FILE_SIZE) {
+  // 이미지 기반 PDF: CNU AI API(MindLogic)가 PDF Vision을 지원하지 않으므로 즉시 안내
+  if (isImageBased) {
     return new Response(
-      "이 PDF는 이미지 기반이지만 파일 크기(5MB 초과)로 인해 Vision 분석이 불가합니다. 텍스트가 포함된 PDF를 사용해주세요.",
+      "이 PDF는 이미지 기반(스캔본·그림 슬라이드)입니다. 텍스트가 직접 포함된 PDF를 업로드해주세요. (예: 한글/Word에서 직접 내보낸 PDF)",
       { status: 422 }
     );
   }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { isAxiosError } from "axios";
+import { toast } from "sonner";
 import apiClient from "@/lib/api/client";
 import MarkdownText from "@/components/ui/MarkdownText";
 import type { SummaryResponse } from "@/types/study.types";
@@ -34,7 +36,12 @@ export default function SummaryTab({ documentId, pageCount }: Props) {
     try {
       const res = await apiClient.post(`/api/ai/${documentId}/summary`, { force });
       setData(res.data);
-    } catch {
+    } catch (e) {
+      const msg =
+        isAxiosError(e) && typeof e.response?.data === "string"
+          ? e.response.data
+          : "요약 생성에 실패했습니다. 잠시 후 다시 시도해주세요.";
+      toast.error(msg);
     } finally {
       setGenerating(false);
     }
