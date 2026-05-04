@@ -9,6 +9,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
 import { NO_LATEX_RULE } from "@/lib/ai/context";
+import { pdfPageToJpeg } from "@/lib/pdf-renderer";
 
 export const maxDuration = 300;
 
@@ -173,10 +174,19 @@ export async function POST(req: Request, { params }: Params) {
 
   const ai = createAiClient(apiKey);
 
-  // 이미지 기반 PDF: CNU AI API(MindLogic)가 PDF Vision을 지원하지 않으므로 즉시 안내
+  // ── Vision fallback (이미지 기반 PDF) — 페이지를 JPEG로 렌더링해서 AI에 전송 ──
+  if (isImageBased && doc.file_path && (doc.file_size ?? 0) <= VISION_MAX_FILE_SIZE) {
+    return await processWithVision({
+      ai, supabase, documentId,
+      filePath: doc.file_path,
+      startPage, endPage, totalPages,
+      isFirstChunk, existingPages, existing, force,
+    });
+  }
+
   if (isImageBased) {
     return new Response(
-      "이 PDF는 이미지 기반(스캔본·그림 슬라이드)입니다. 텍스트가 직접 포함된 PDF를 업로드해주세요. (예: 한글/Word에서 직접 내보낸 PDF)",
+      "이 PDF는 이미지 기반이지만 파일 크기(5MB 초과)로 인해 Vision 분석이 불가합니다. 텍스트가 포함된 PDF를 사용해주세요.",
       { status: 422 }
     );
   }
@@ -248,21 +258,43 @@ async function processWithVision({
     return new Response("PDF 파일을 불러올 수 없습니다.", { status: 500 });
   }
 
-  const buffer = await fileBlob.arrayBuffer();
-  const base64Pdf = Buffer.from(buffer).toString("base64");
+  const pdfBuffer = await fileBlob.arrayBuffer();
 
-  // Vision 청크 단위로 순차 처리 (timeout 방지)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let allPages: any[] = [];
   let briefSummary = "";
 
-  const chunkStart = startPage;
-  const chunkEnd = endPage;
+  // VISION_CHUNK_PAGES 단위로 나눠서 처리 (timeout 방지)
+  for (let vs = startPage; vs <= endPage; vs += VISION_CHUNK_PAGES) {
+    const ve = Math.min(vs + VISION_CHUNK_PAGES - 1, endPage);
+    const isVeryFirst = isFirstChunk && vs === startPage;
 
-  // VISION_CHUNK_PAGES 단위로 나눠서 처리
-  for (let vs = chunkStart; vs <= chunkEnd; vs += VISION_CHUNK_PAGES) {
-    const ve = Math.min(vs + VISION_CHUNK_PAGES - 1, chunkEnd);
-    const isVeryFirst = isFirstChunk && vs === chunkStart;
+    // 각 페이지를 JPEG로 렌더링 (PDF 통째로 전송하는 대신)
+    const pageImages: string[] = [];
+    for (let p = vs; p <= ve; p++) {
+      try {
+        pageImages.push(await pdfPageToJpeg(pdfBuffer, p));
+      } catch (e) {
+        console.error(`[summary/vision] page ${p} render failed:`, e);
+      }
+    }
+
+    if (pageImages.length === 0) {
+      console.error(`[summary/vision] no pages rendered for chunk ${vs}-${ve}`);
+      continue;
+    }
+
+    const prompt = isVeryFirst
+      ? `이 강의자료 슬라이드 ${vs}~${ve}페이지를 분석해서 해설해줘. 이 구간이 첫 번째 구간이므로 briefSummary도 포함해줘. 각 페이지(${vs}부터 ${ve}까지)를 개별적으로 정리해줘.`
+      : `이 강의자료 슬라이드 ${vs}~${ve}페이지를 분석해서 해설해줘. briefSummary는 생략하고 pages 배열만 반환해줘. 각 페이지(${vs}부터 ${ve}까지)를 개별적으로 정리해줘.`;
+
+    const userContent = [
+      { type: "text", text: prompt },
+      ...pageImages.map((b64) => ({
+        type: "image_url",
+        image_url: { url: `data:image/jpeg;base64,${b64}` },
+      })),
+    ];
 
     let visionCompletion;
     try {
@@ -270,22 +302,7 @@ async function processWithVision({
         model: "claude-sonnet-4-6",
         messages: [
           { role: "system", content: VISION_SYSTEM },
-          {
-            role: "user",
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            content: [
-              {
-                type: "text",
-                text: isVeryFirst
-                  ? `이 PDF 강의자료의 ${vs}~${ve}페이지 내용을 분석해서 해설해줘. 이 구간이 첫 번째 구간이므로 briefSummary도 포함해줘. 각 페이지(${vs}부터 ${ve}까지)를 개별적으로 정리해줘.`
-                  : `이 PDF 강의자료의 ${vs}~${ve}페이지 내용을 분석해서 해설해줘. briefSummary는 생략하고 pages 배열만 반환해줘. 각 페이지(${vs}부터 ${ve}까지)를 개별적으로 정리해줘.`,
-              },
-              {
-                type: "image_url",
-                image_url: { url: `data:application/pdf;base64,${base64Pdf}` },
-              },
-            ] as unknown as string,
-          },
+          { role: "user", content: userContent as unknown as string },
         ],
         max_tokens: 4096,
         temperature: 0.2,
@@ -307,7 +324,7 @@ async function processWithVision({
   }
 
   if (allPages.length === 0) {
-    return new Response("Vision 처리에 실패했습니다. 다시 시도해주세요.", { status: 500 });
+    return new Response("Vision 처리에 실패했습니다. 다시 시도해주세요.", { status: 422 });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -316,7 +333,7 @@ async function processWithVision({
     briefSummary: isFirstChunk ? briefSummary : (existing as { briefSummary?: string } | null)?.briefSummary ?? "",
     pages: mergedPages,
     totalPages,
-    complete: chunkEnd >= totalPages,
+    complete: endPage >= totalPages,
   };
 
   await supabase.from("generated_contents").upsert(
