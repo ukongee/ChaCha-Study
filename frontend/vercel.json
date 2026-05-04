@@ -3,6 +3,9 @@
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/documents/process/route.ts": {
+      "maxDuration": 300
     }
   }
 }

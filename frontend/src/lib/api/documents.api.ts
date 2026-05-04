@@ -25,15 +25,46 @@ export const documentsApi = {
   },
 
   uploadDocument: async (file: File, onProgress?: (pct: number) => void): Promise<Document> => {
-    const form = new FormData();
-    form.append("file", file);
-    const res = await apiClient.post<Record<string, unknown>>("/api/documents/upload", form, {
-      headers: { "Content-Type": "multipart/form-data" },
-      onUploadProgress: (e) => {
-        if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
-      },
+    // Step 1: Get a signed upload URL (tiny JSON request — bypasses Vercel 4.5MB body limit)
+    const { data: signedData } = await apiClient.post<{
+      signedUrl: string;
+      path: string;
+      documentId: string;
+      fileType: string;
+    }>("/api/documents/signed-url", {
+      filename: file.name,
+      fileType: file.type,
+      fileSize: file.size,
     });
-    return mapDoc(res.data);
+
+    const { signedUrl, path, documentId, fileType } = signedData;
+
+    // Step 2: Upload file directly to Supabase Storage (no Vercel serverless in the path)
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", signedUrl);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      if (onProgress) {
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 90));
+        });
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error(`스토리지 업로드 실패: ${xhr.status} ${xhr.responseText}`));
+      };
+      xhr.onerror = () => reject(new Error("스토리지 업로드 중 네트워크 오류가 발생했습니다."));
+      xhr.send(file);
+    });
+
+    // Step 3: Parse text + save to DB (small JSON request)
+    const { data: raw } = await apiClient.post<Record<string, unknown>>(
+      "/api/documents/process",
+      { path, documentId, filename: file.name, fileType, fileSize: file.size },
+      { timeout: 300000 }
+    );
+
+    return mapDoc(raw);
   },
 
   ingestDocument: async (id: string): Promise<{ chunkCount: number }> => {

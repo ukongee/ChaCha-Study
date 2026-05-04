@@ -35,8 +35,10 @@ export function handleAiError(e: unknown): Response {
         ? "API 키가 유효하지 않거나 해당 모델에 대한 접근 권한이 없습니다."
         : e.status === 401
         ? "API 키 인증에 실패했습니다."
+        : e.status === 413
+        ? "요청 데이터가 너무 큽니다. 파일이 너무 크거나 텍스트 분량이 많습니다. 더 작은 파일을 사용해주세요."
         : `AI API 오류 (${e.status}): ${e.message}`;
-    return new Response(msg, { status: e.status ?? 500 });
+    return new Response(msg, { status: e.status === 413 ? 422 : (e.status ?? 500) });
   }
   throw e;
 }
