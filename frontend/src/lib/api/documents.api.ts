@@ -25,6 +25,8 @@ export const documentsApi = {
   },
 
   uploadDocument: async (file: File, onProgress?: (pct: number) => void): Promise<Document> => {
+    onProgress?.(2);
+
     // Step 1: Get a signed upload URL (tiny JSON request — bypasses Vercel 4.5MB body limit)
     const { data: signedData } = await apiClient.post<{
       signedUrl: string;
@@ -38,15 +40,17 @@ export const documentsApi = {
     });
 
     const { signedUrl, path, documentId, fileType } = signedData;
+    onProgress?.(5);
 
     // Step 2: Upload file directly to Supabase Storage (no Vercel serverless in the path)
+    // Progress mapped to 5-80% so the parsing phase has room to animate.
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", signedUrl);
       xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
       if (onProgress) {
         xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 90));
+          if (e.lengthComputable) onProgress(5 + Math.round((e.loaded / e.total) * 75));
         });
       }
       xhr.onload = () => {
@@ -57,14 +61,25 @@ export const documentsApi = {
       xhr.send(file);
     });
 
-    // Step 3: Parse text + save to DB (small JSON request)
-    const { data: raw } = await apiClient.post<Record<string, unknown>>(
-      "/api/documents/process",
-      { path, documentId, filename: file.name, fileType, fileSize: file.size },
-      { timeout: 300000 }
-    );
+    // Step 3: Parse text + save to DB (can take 10-30s for large files).
+    // Slowly tick 80→98% so the bar visibly moves during parsing.
+    onProgress?.(80);
+    let fake = 80;
+    const ticker = setInterval(() => {
+      fake = Math.min(fake + 1, 98);
+      onProgress?.(fake);
+    }, 600);
 
-    return mapDoc(raw);
+    try {
+      const { data: raw } = await apiClient.post<Record<string, unknown>>(
+        "/api/documents/process",
+        { path, documentId, filename: file.name, fileType, fileSize: file.size },
+        { timeout: 300000 }
+      );
+      return mapDoc(raw);
+    } finally {
+      clearInterval(ticker);
+    }
   },
 
   ingestDocument: async (id: string): Promise<{ chunkCount: number }> => {
