@@ -7,13 +7,14 @@
  * 이미지 기반 PDF (추출 텍스트 < 1000자) → Vision fallback 자동 적용
  */
 import { createServiceClient } from "@/lib/supabase/service";
-import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { createAiClient, createCompletion, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { SMART_MODEL, VISION_MODEL } from "@/lib/ai/models";
 import { NO_LATEX_RULE } from "@/lib/ai/context";
 import { pdfPageToJpeg } from "@/lib/pdf-renderer";
 
 export const maxDuration = 300;
 
-const MODEL = "claude-sonnet-4-6";
+const MODEL = SMART_MODEL;
 const CHUNK_SIZE = 10;
 /** Vision 모드는 요청당 페이지 수를 줄여 60초 타임아웃 방지 */
 const VISION_CHUNK_SIZE = 5;
@@ -212,7 +213,7 @@ export async function POST(req: Request, { params }: Params) {
 
   let completion;
   try {
-    completion = await ai.chat.completions.create({
+    completion = await createCompletion(ai, {
       model: MODEL,
       messages: [
         { role: "system", content: SUMMARY_SYSTEM },
@@ -298,8 +299,8 @@ async function processWithVision({
 
     let visionCompletion;
     try {
-      visionCompletion = await ai.chat.completions.create({
-        model: "claude-sonnet-4-6",
+      visionCompletion = await createCompletion(ai, {
+        model: VISION_MODEL,
         messages: [
           { role: "system", content: VISION_SYSTEM },
           { role: "user", content: userContent as unknown as string },

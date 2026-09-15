@@ -10,11 +10,12 @@
  * 4. 대화 기록 저장
  */
 import { createServiceClient } from "@/lib/supabase/service";
-import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { createAiClient, createCompletion, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { SMART_MODEL } from "@/lib/ai/models";
 import { NO_LATEX_RULE } from "@/lib/ai/context";
 import type { WikiSection, WikiData } from "@/app/api/ai/[documentId]/wiki/route";
 
-const MODEL = "claude-sonnet-4-6";
+const MODEL = SMART_MODEL;
 /** 질문당 선택할 최대 섹션 수 */
 const MAX_SECTIONS = 4;
 
@@ -140,7 +141,7 @@ export async function POST(req: Request, { params }: Params) {
   const ai = createAiClient(apiKey);
   let completion;
   try {
-    completion = await ai.chat.completions.create({
+    completion = await createCompletion(ai, {
       model: MODEL,
       messages: [
         {

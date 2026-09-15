@@ -5,10 +5,11 @@
  * Caches result in generated_contents table.
  */
 import { createServiceClient } from "@/lib/supabase/service";
-import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { createAiClient, createCompletion, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { SMART_MODEL } from "@/lib/ai/models";
 import { getSummaryContext, NO_LATEX_RULE } from "@/lib/ai/context";
 
-const MODEL = "claude-sonnet-4-6";
+const MODEL = SMART_MODEL;
 
 interface Params {
   params: Promise<{ documentId: string }>;
@@ -98,7 +99,7 @@ export async function POST(req: Request, { params }: Params) {
   const ai = createAiClient(apiKey);
   let completion;
   try {
-    completion = await ai.chat.completions.create({
+    completion = await createCompletion(ai, {
       model: MODEL,
       messages: [
         {

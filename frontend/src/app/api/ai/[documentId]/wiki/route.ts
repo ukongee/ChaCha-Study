@@ -7,10 +7,11 @@
  * 이후 AI Tutor 질문에서 섹션 단위로 선택적 사용
  */
 import { createServiceClient } from "@/lib/supabase/service";
-import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { createAiClient, createCompletion, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { SMART_MODEL } from "@/lib/ai/models";
 import { getSummaryContext, NO_LATEX_RULE } from "@/lib/ai/context";
 
-const MODEL = "claude-sonnet-4-6";
+const MODEL = SMART_MODEL;
 
 export interface WikiSection {
   title: string;
@@ -139,7 +140,7 @@ export async function POST(req: Request, { params }: Params) {
   const ai = createAiClient(apiKey);
   let completion;
   try {
-    completion = await ai.chat.completions.create({
+    completion = await createCompletion(ai, {
       model: MODEL,
       messages: [
         { role: "system", content: WIKI_SYSTEM },

@@ -5,10 +5,11 @@
  * Caches result in generated_contents table.
  */
 import { createServiceClient } from "@/lib/supabase/service";
-import { createAiClient, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { createAiClient, createCompletion, getApiKey, ApiKeyMissingError, handleAiError } from "@/lib/ai/client";
+import { SMART_MODEL } from "@/lib/ai/models";
 import { getSummaryContext, NO_LATEX_RULE } from "@/lib/ai/context";
 
-const MODEL = "claude-sonnet-4-6";
+const MODEL = SMART_MODEL;
 
 const EXAM_POINTS_SYSTEM = `당신은 대학교 시험 출제 전문가입니다.
 ${NO_LATEX_RULE}
@@ -128,7 +129,7 @@ export async function POST(req: Request, { params }: Params) {
   const ai = createAiClient(apiKey);
   let completion;
   try {
-    completion = await ai.chat.completions.create({
+    completion = await createCompletion(ai, {
       model: MODEL,
       messages: [
         { role: "system", content: EXAM_POINTS_SYSTEM },
