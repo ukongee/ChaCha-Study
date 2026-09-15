@@ -70,7 +70,7 @@ export async function createCompletion(
 }
 
 /** 게이트웨이가 돌려준 오류 본문에서 사람이 읽을 메시지를 뽑아낸다 */
-function gatewayDetail(e: OpenAI.APIError): string {
+function gatewayDetail(e: InstanceType<typeof OpenAI.APIError>): string {
   const body: unknown = e.error;
   if (typeof body === "string") return body;
   if (body && typeof body === "object") {
